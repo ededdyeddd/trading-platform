@@ -89,12 +89,15 @@ Tailwind v4 uses `@theme` blocks in CSS instead of `tailwind.config.ts`, so toke
    - **`<InstrumentsPanel>`** — [web/src/components/instruments-panel.tsx](../web/src/components/instruments-panel.tsx) ✅ DONE — search input · Favorites collapsible · column headers · 13 watchlist rows from `WATCHLIST` (drag handle, ticker dot, semibold symbol, signal arrow ▲/▼, bid/ask in side-tinted chips). Active row uses `--color-surface-2` bg.
    - **`<SettingsPanel>`** — [web/src/components/settings-panel.tsx](../web/src/components/settings-panel.tsx) ✅ DONE — toggle groups: Show on chart (Signals / HMR / Price alerts / Open positions / TP-SL / Economic calendar with nested checkboxes for impact levels), Sound effects (with `?` help icon), Open order mode dropdown, Price source dropdown. Uses shadcn `<Switch>` and `<Checkbox>` primitives.
    - Calendar variant — placeholder copy for now.
-4. **`<ChartPanel>`** — [web/src/components/chart-panel.tsx](../web/src/components/chart-panel.tsx)
-   - Top toolbar: timeframe button · indicators · layout · undo/redo · Save · screenshot · floating P/L tag · fullscreen
-   - `lightweight-charts` candlestick canvas + volume pane
-   - **Position lines on chart**: horizontal `priceLine`s for entry/TP/SL/current with floating chips (volume + P/L) and right-edge price tags
-   - Bottom strip: timeframe range buttons (5y/1y/6m/3m/1m/5d/1d) · UTC clock · auto toggle
-   - **Drawing tools sidebar omitted** (per user)
+4. **`<ChartPanel>`** — [web/src/components/chart-panel.tsx](../web/src/components/chart-panel.tsx) ✅ DONE
+   - Top toolbar: timeframe (`1m`) · trend · `fx Indicators` · layout · undo/redo · Save ▾ · screenshot · brand-tinted P/L tag (chartreuse if positive, coral if negative) · fullscreen
+   - `lightweight-charts` v5 candlestick canvas with chartreuse up/coral down candles, dotted grid in `--border`, dashed crosshair
+   - Volume `HistogramSeries` in a second pane (~18% height) with side-tinted bars
+   - **Position lines** via `createPriceLine`: entry (`--info` dashed), TP (`--buy` dashed), SL (`--sell` dashed), with axis labels
+   - Tokens read from CSS vars at runtime so chart stays in sync with `globals.css` / `design.md`
+   - `ResizeObserver` keeps chart sized to its container as panels resize
+   - Bottom strip: 5y/1y/6m/3m/1m (active) /5d/1d buttons · calendar icon · live UTC clock · auto toggle
+   - Drawing tools sidebar omitted (per user)
 5. **`<OrderPanel>`** — [web/src/components/order-panel.tsx](../web/src/components/order-panel.tsx) (the operational hero)
    - Header: ticker + close ✕
    - Order-mode dropdown ("Regular form" — visual only)

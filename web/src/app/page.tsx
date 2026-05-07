@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { ChartPanel } from "@/components/chart-panel";
 import { ContextualPanel } from "@/components/contextual-panel";
 import { HeaderBar } from "@/components/header-bar";
 import { SideRail, type RailPanel } from "@/components/side-rail";
@@ -9,9 +10,19 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import { SettingsProvider } from "@/lib/settings-context";
 
 export default function Home() {
-  const [activeRailPanel, setActiveRailPanel] = useState<RailPanel>("instruments");
+  return (
+    <SettingsProvider>
+      <Terminal />
+    </SettingsProvider>
+  );
+}
+
+function Terminal() {
+  const [activeRailPanel, setActiveRailPanel] =
+    useState<RailPanel>("instruments");
 
   return (
     <div className="flex h-screen w-screen flex-col bg-bg">
@@ -43,7 +54,7 @@ export default function Home() {
           <ResizablePanel id="middle" defaultSize="50%" minSize="30%">
             <ResizablePanelGroup orientation="vertical">
               <ResizablePanel id="chart" defaultSize="72%" minSize="30%">
-                <Stub label="ChartPanel" />
+                <ChartPanel />
               </ResizablePanel>
               <ResizableHandle withHandle />
               <ResizablePanel id="positions" defaultSize="28%" minSize="10%">

@@ -1,42 +1,44 @@
 "use client";
 
-import { useState } from "react";
 import { ChevronDown, HelpCircle } from "lucide-react";
 import { Switch } from "@/components/ui/switch";
 import { Checkbox } from "@/components/ui/checkbox";
+import {
+  useSettings,
+  type ChartFlag,
+  type ImpactLevel,
+  type SoundFlag,
+} from "@/lib/settings-context";
 
 type ChartToggle = {
-  id: string;
+  id: ChartFlag;
   label: string;
-  defaultOn?: boolean;
   hasNested?: boolean;
 };
 
 const CHART_TOGGLES: ChartToggle[] = [
   { id: "signals", label: "Signals" },
-  { id: "hmr", label: "HMR periods", defaultOn: true },
-  { id: "alerts", label: "Price alerts", defaultOn: true },
-  { id: "positions", label: "Open positions", defaultOn: true },
+  { id: "hmr", label: "HMR periods" },
+  { id: "alerts", label: "Price alerts" },
+  { id: "openPositions", label: "Open positions" },
   { id: "tpsl", label: "TP / SL / Stop / Limit" },
-  { id: "calendar", label: "Economic calendar", defaultOn: true, hasNested: true },
+  { id: "calendar", label: "Economic calendar", hasNested: true },
 ];
 
-const IMPACT_LEVELS = ["High impact", "Middle impact", "Low impact", "Lowest impact"];
+const IMPACT_LEVELS: ImpactLevel[] = [
+  "High impact",
+  "Middle impact",
+  "Low impact",
+  "Lowest impact",
+];
+
+const SOUND_TOGGLES: { id: SoundFlag; label: string }[] = [
+  { id: "alerts", label: "Price alerts" },
+  { id: "closing", label: "Closing by TP / SL / SO" },
+];
 
 export function SettingsPanel() {
-  const [chartFlags, setChartFlags] = useState<Record<string, boolean>>(
-    Object.fromEntries(CHART_TOGGLES.map((t) => [t.id, !!t.defaultOn]))
-  );
-  const [impacts, setImpacts] = useState<Record<string, boolean>>({
-    "High impact": true,
-    "Middle impact": false,
-    "Low impact": false,
-    "Lowest impact": false,
-  });
-  const [soundFlags, setSoundFlags] = useState<Record<string, boolean>>({
-    alerts: false,
-    closing: false,
-  });
+  const { settings, setChartFlag, setSoundFlag, setImpact } = useSettings();
 
   return (
     <div className="flex flex-col gap-5 px-3 pb-6">
@@ -46,21 +48,17 @@ export function SettingsPanel() {
           <div key={t.id}>
             <ToggleRow
               label={t.label}
-              checked={chartFlags[t.id]}
-              onCheckedChange={(v) =>
-                setChartFlags((prev) => ({ ...prev, [t.id]: v }))
-              }
+              checked={settings.chart[t.id]}
+              onCheckedChange={(v) => setChartFlag(t.id, v)}
             />
-            {t.hasNested && chartFlags[t.id] && (
+            {t.hasNested && settings.chart[t.id] && (
               <div className="ml-2 flex flex-col gap-2 pb-2 pl-2">
                 {IMPACT_LEVELS.map((level) => (
                   <CheckboxRow
                     key={level}
                     label={level}
-                    checked={impacts[level]}
-                    onCheckedChange={(v) =>
-                      setImpacts((prev) => ({ ...prev, [level]: v }))
-                    }
+                    checked={settings.impacts[level]}
+                    onCheckedChange={(v) => setImpact(level, v)}
                   />
                 ))}
               </div>
@@ -71,26 +69,24 @@ export function SettingsPanel() {
 
       {/* Sound effects */}
       <Group title="Sound effects" hasHelp>
-        <ToggleRow
-          label="Price alerts"
-          checked={soundFlags.alerts}
-          onCheckedChange={(v) => setSoundFlags((p) => ({ ...p, alerts: v }))}
-        />
-        <ToggleRow
-          label="Closing by TP / SL / SO"
-          checked={soundFlags.closing}
-          onCheckedChange={(v) => setSoundFlags((p) => ({ ...p, closing: v }))}
-        />
+        {SOUND_TOGGLES.map((t) => (
+          <ToggleRow
+            key={t.id}
+            label={t.label}
+            checked={settings.sounds[t.id]}
+            onCheckedChange={(v) => setSoundFlag(t.id, v)}
+          />
+        ))}
       </Group>
 
       {/* Open order mode */}
       <Group title="Open order mode">
-        <DropdownRow value="Regular form" />
+        <DropdownRow value={settings.orderMode} />
       </Group>
 
-      {/* Price source (placeholder section header — Exness has it) */}
+      {/* Price source */}
       <Group title="Price source">
-        <DropdownRow value="Last price" />
+        <DropdownRow value={settings.priceSource} />
       </Group>
     </div>
   );
@@ -126,7 +122,7 @@ function ToggleRow({
   onCheckedChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex items-center justify-between py-1.5 text-xs cursor-pointer">
+    <label className="flex cursor-pointer items-center justify-between py-1.5 text-xs">
       <span className="text-text">{label}</span>
       <Switch checked={checked} onCheckedChange={onCheckedChange} />
     </label>
@@ -143,7 +139,7 @@ function CheckboxRow({
   onCheckedChange: (v: boolean) => void;
 }) {
   return (
-    <label className="flex items-center gap-2 text-xs cursor-pointer">
+    <label className="flex cursor-pointer items-center gap-2 text-xs">
       <Checkbox
         checked={checked}
         onCheckedChange={(v) => onCheckedChange(v === true)}
