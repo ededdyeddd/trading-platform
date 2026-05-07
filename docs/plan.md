@@ -106,13 +106,13 @@ Tailwind v4 uses `@theme` blocks in CSS instead of `tailwind.config.ts`, so toke
    - Tabs: Market | Pending — switches the form
    - Form: Volume (shares, ± steppers) · Take Profit · Stop Loss · (Pending mode adds Open price + Limit/Stop selector at top). All inputs: `font-mono`, surface-2 bg, accent border on focus, ± steppers with sensible default increments
    - Sticky footer: Confirm CTA (chartreuse if buy, coral if sell) with dynamic label `Buy NVDA · 1 Share` / `Confirm Sell Limit · 1 Share` etc., Cancel ghost, Fees / Margin used / Buying power breakdown, More ▾
-6. **`<PositionsPanel>`** — [web/src/components/positions-panel.tsx](../web/src/components/positions-panel.tsx)
-   - Tabs: Open (N) | Pending | Closed
-   - Table cols: Symbol · Type · Volume · Open price · Current price · T/P · S/L · Position · P/L USD · edit/close icons
-   - Collapse toggle in header
-7. **`<StatusBar>`** — [web/src/components/status-bar.tsx](../web/src/components/status-bar.tsx)
-   - Account stats (label + mono value pairs): Balance · Buying power · Cash · Day P/L · Total P/L · Margin used (kept for prototype realism)
-   - Right side: "Close all ▾" + signal indicator
+6. **`<PositionsPanel>`** — [web/src/components/positions-panel.tsx](../web/src/components/positions-panel.tsx) ✅ DONE
+   - Tabs: Open (N) | Pending | Closed with count badges (active tab gets chartreuse-fg badge); right side: filter, group, more icon buttons
+   - Open table (CSS grid for column alignment): Symbol with TickerIcon · Type (Buy/Sell colored) · Volume · Open price (editable dashed underline) · Current · T/P (editable) · S/L (editable) · Position id · P/L USD (colored by sign) · Edit/X actions
+   - Pending and Closed render empty states for now (`PENDING_ORDERS` / closed orders not in mock data yet)
+7. **`<StatusBar>`** — [web/src/components/status-bar.tsx](../web/src/components/status-bar.tsx) ✅ DONE
+   - Account stats: Balance · Buying power · Cash · Day P/L (coral, since mock is negative) · Total P/L (chartreuse) · Margin used. Each is `label: value` with mono value
+   - Right side: `Close all ▾` ghost button + 4-bar signal indicator
 
 **Mock data — [web/src/lib/mock-data.ts](../web/src/lib/mock-data.ts):** ✅ DONE
 - 13-instrument watchlist (Robinhood-style: AAPL, AMC, AMD, AMZN, DIS, F, GOOGL, KO, META, MSFT, NFLX, NVDA, TSLA) with bid, ask, last, change, change%, volume, signal

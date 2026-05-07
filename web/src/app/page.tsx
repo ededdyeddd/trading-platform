@@ -5,7 +5,9 @@ import { ChartPanel } from "@/components/chart-panel";
 import { ContextualPanel } from "@/components/contextual-panel";
 import { HeaderBar } from "@/components/header-bar";
 import { OrderPanel } from "@/components/order-panel";
+import { PositionsPanel } from "@/components/positions-panel";
 import { SideRail, type RailPanel } from "@/components/side-rail";
+import { StatusBar } from "@/components/status-bar";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -59,7 +61,7 @@ function Terminal() {
               </ResizablePanel>
               <ResizableHandle withHandle />
               <ResizablePanel id="positions" defaultSize="28%" minSize="10%">
-                <Stub label="PositionsPanel" />
+                <PositionsPanel />
               </ResizablePanel>
             </ResizablePanelGroup>
           </ResizablePanel>
@@ -78,19 +80,9 @@ function Terminal() {
       </div>
 
       {/* Status bar — full width, fixed 36px */}
-      <footer className="h-9 shrink-0 border-t border-border">
-        <Stub label="StatusBar" />
-      </footer>
-    </div>
-  );
-}
-
-function Stub({ label }: { label: string }) {
-  return (
-    <div className="flex h-full w-full items-center justify-center bg-surface text-text-subtle">
-      <span className="font-mono text-[11px] uppercase tracking-wider">
-        {label} · coming next
-      </span>
+      <div className="shrink-0 border-t border-border">
+        <StatusBar />
+      </div>
     </div>
   );
 }
