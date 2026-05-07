@@ -4,6 +4,7 @@ import { useState } from "react";
 import { ChartPanel } from "@/components/chart-panel";
 import { ContextualPanel } from "@/components/contextual-panel";
 import { HeaderBar } from "@/components/header-bar";
+import { OrderPanel } from "@/components/order-panel";
 import { SideRail, type RailPanel } from "@/components/side-rail";
 import {
   ResizableHandle,
@@ -71,7 +72,7 @@ function Terminal() {
             minSize="20%"
             maxSize="45%"
           >
-            <Stub label="OrderPanel" />
+            <OrderPanel />
           </ResizablePanel>
         </ResizablePanelGroup>
       </div>

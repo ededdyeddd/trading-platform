@@ -98,14 +98,14 @@ Tailwind v4 uses `@theme` blocks in CSS instead of `tailwind.config.ts`, so toke
    - `ResizeObserver` keeps chart sized to its container as panels resize
    - Bottom strip: 5y/1y/6m/3m/1m (active) /5d/1d buttons · calendar icon · live UTC clock · auto toggle
    - Drawing tools sidebar omitted (per user)
-5. **`<OrderPanel>`** — [web/src/components/order-panel.tsx](../web/src/components/order-panel.tsx) (the operational hero)
-   - Header: ticker + close ✕
+5. **`<OrderPanel>`** — [web/src/components/order-panel.tsx](../web/src/components/order-panel.tsx) ✅ DONE
+   - Header: ticker icon + symbol + name + close ✕
    - Order-mode dropdown ("Regular form" — visual only)
-   - **`<SellBuyQuoteSplit>`** — two large colored cards with bid/ask, last 2 digits enlarged, spread chip in the middle. Sell red, Buy chartreuse (Robinhood-style).
-   - **`<SentimentBar>`** — thin red/chartreuse split with percentages
+   - **`<SellBuyQuoteSplit>`** — [web/src/components/sell-buy-quote.tsx](../web/src/components/sell-buy-quote.tsx) — two cards side-by-side. Idle: side-tinted soft bg (`--sell-soft` / `--buy-soft`). Active: solid (`--sell` / `--accent`). Price uses last-2-digits-enlarged pattern. Spread chip overlapping the seam.
+   - **`<SentimentBar>`** — [web/src/components/sentiment-bar.tsx](../web/src/components/sentiment-bar.tsx) — 6px split bar with `--sell` / `--buy` segments and mono percentages on each side
    - Tabs: Market | Pending — switches the form
-   - Form: Volume (shares, ± steppers) · Take Profit · Stop Loss · (pending mode adds Open price + Limit/Stop)
-   - Confirm CTA (Buy = chartreuse, Sell = red) + ghost Cancel + Fees / Margin / "More" footer breakdown
+   - Form: Volume (shares, ± steppers) · Take Profit · Stop Loss · (Pending mode adds Open price + Limit/Stop selector at top). All inputs: `font-mono`, surface-2 bg, accent border on focus, ± steppers with sensible default increments
+   - Sticky footer: Confirm CTA (chartreuse if buy, coral if sell) with dynamic label `Buy NVDA · 1 Share` / `Confirm Sell Limit · 1 Share` etc., Cancel ghost, Fees / Margin used / Buying power breakdown, More ▾
 6. **`<PositionsPanel>`** — [web/src/components/positions-panel.tsx](../web/src/components/positions-panel.tsx)
    - Tabs: Open (N) | Pending | Closed
    - Table cols: Symbol · Type · Volume · Open price · Current price · T/P · S/L · Position · P/L USD · edit/close icons
