@@ -14,6 +14,7 @@ import {
   hasOpenPosition,
   OPEN_TABS,
 } from "@/lib/mock-data";
+import { TickerIcon } from "@/components/ticker-icon";
 
 export function HeaderBar() {
   return (
@@ -107,7 +108,7 @@ function InstrumentTab({
           : "border-transparent text-text-muted hover:text-text"
       }`}
     >
-      <div className="h-4 w-4 rounded-full bg-surface-2" />
+      <TickerIcon symbol={symbol} size={14} />
       <span>{symbol}</span>
       {hasPosition && (
         <span

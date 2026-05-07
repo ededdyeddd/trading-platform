@@ -83,11 +83,12 @@ Tailwind v4 uses `@theme` blocks in CSS instead of `tailwind.config.ts`, so toke
 
 1. **`<HeaderBar>`** — [web/src/components/header-bar.tsx](../web/src/components/header-bar.tsx) ✅ DONE
    - Logo · multi-instrument tabs (AAPL, NVDA, AMZN, +) with active state and red-bar position indicator · `Demo · $9,605.17 ▾` account selector · notification/alarm/apps/avatar icons · Deposit pill CTA
-2. **`<SideRail>`** — [web/src/components/side-rail.tsx](../web/src/components/side-rail.tsx)
-   - 32px vertical icon column: Instruments / Calendar / Settings. Active icon controls the contextual panel.
-3. **`<ContextualPanel>`** wrapper — [web/src/components/contextual-panel.tsx](../web/src/components/contextual-panel.tsx) — switches between:
-   - **`<InstrumentsPanel>`** — search + Favorites collapsible + symbol list with drag-handle, ticker icon, signal arrow, bid, ask
-   - **`<SettingsPanel>`** — toggle groups: "Show on chart" (Signals / HMR / Price alerts / Open positions / TP-SL / Economic calendar with impact filters), "Sound effects", "Open order mode" dropdown
+2. **`<SideRail>`** — [web/src/components/side-rail.tsx](../web/src/components/side-rail.tsx) ✅ DONE
+   - Vertical icon column inside the fixed 48px aside: Instruments / Calendar / Settings. Active icon highlighted with `--color-surface-2` bg + 2px `--color-accent` left strip. Click swaps the contextual panel content via `activeRailPanel` state in `page.tsx`.
+3. **`<ContextualPanel>`** wrapper — [web/src/components/contextual-panel.tsx](../web/src/components/contextual-panel.tsx) ✅ DONE — header shows panel title + close affordance, body is a vertical-scrolling region that renders one of:
+   - **`<InstrumentsPanel>`** — [web/src/components/instruments-panel.tsx](../web/src/components/instruments-panel.tsx) ✅ DONE — search input · Favorites collapsible · column headers · 13 watchlist rows from `WATCHLIST` (drag handle, ticker dot, semibold symbol, signal arrow ▲/▼, bid/ask in side-tinted chips). Active row uses `--color-surface-2` bg.
+   - **`<SettingsPanel>`** — [web/src/components/settings-panel.tsx](../web/src/components/settings-panel.tsx) ✅ DONE — toggle groups: Show on chart (Signals / HMR / Price alerts / Open positions / TP-SL / Economic calendar with nested checkboxes for impact levels), Sound effects (with `?` help icon), Open order mode dropdown, Price source dropdown. Uses shadcn `<Switch>` and `<Checkbox>` primitives.
+   - Calendar variant — placeholder copy for now.
 4. **`<ChartPanel>`** — [web/src/components/chart-panel.tsx](../web/src/components/chart-panel.tsx)
    - Top toolbar: timeframe button · indicators · layout · undo/redo · Save · screenshot · floating P/L tag · fullscreen
    - `lightweight-charts` candlestick canvas + volume pane

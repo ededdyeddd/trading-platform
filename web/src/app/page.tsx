@@ -1,6 +1,9 @@
 "use client";
 
+import { useState } from "react";
+import { ContextualPanel } from "@/components/contextual-panel";
 import { HeaderBar } from "@/components/header-bar";
+import { SideRail, type RailPanel } from "@/components/side-rail";
 import {
   ResizableHandle,
   ResizablePanel,
@@ -8,6 +11,8 @@ import {
 } from "@/components/ui/resizable";
 
 export default function Home() {
+  const [activeRailPanel, setActiveRailPanel] = useState<RailPanel>("instruments");
+
   return (
     <div className="flex h-screen w-screen flex-col bg-bg">
       {/* Header — full width, fixed 52px */}
@@ -19,7 +24,7 @@ export default function Home() {
       <div className="flex flex-1 overflow-hidden">
         {/* Side rail — fixed 48px, no resize */}
         <aside className="w-12 shrink-0 border-r border-border bg-bg">
-          <Stub label="SideRail" />
+          <SideRail active={activeRailPanel} onChange={setActiveRailPanel} />
         </aside>
 
         {/* Resizable panel tree */}
@@ -30,7 +35,7 @@ export default function Home() {
             minSize="15%"
             maxSize="40%"
           >
-            <Stub label="ContextualPanel" />
+            <ContextualPanel active={activeRailPanel} />
           </ResizablePanel>
 
           <ResizableHandle withHandle />
