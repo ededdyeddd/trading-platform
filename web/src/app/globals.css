@@ -1,0 +1,171 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+/* =====================================================================
+ * Tailwind v4 theme — generates utilities (bg-bg, text-buy, rounded-pill)
+ * Source of truth: design/design.md Section A
+ * ==================================================================== */
+
+@theme inline {
+  /* === Brand tokens === */
+  --color-bg: var(--bg);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-border-strong: var(--border-strong);
+  --color-text: var(--text);
+  --color-text-muted: var(--text-muted);
+  --color-text-subtle: var(--text-subtle);
+  --color-accent-hover: var(--accent-hover);
+  --color-accent-fg: var(--accent-fg);
+  --color-buy: var(--buy);
+  --color-buy-soft: var(--buy-soft);
+  --color-sell: var(--sell);
+  --color-sell-soft: var(--sell-soft);
+  --color-warning: var(--warning);
+  --color-warning-soft: var(--warning-soft);
+  --color-info: var(--info);
+  --color-selection: var(--selection);
+
+  /* === shadcn aliases (existing shadcn primitives keep working) === */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+
+  /* === Typography === */
+  --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --text-xs: 0.6875rem;
+  --text-sm: 0.8125rem;
+  --text-base: 0.875rem;
+  --text-md: 1rem;
+  --text-lg: 1.125rem;
+  --text-xl: 1.5rem;
+  --text-2xl: 2rem;
+
+  --font-weight-regular: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --leading-tight: 1.2;
+  --leading-normal: 1.4;
+  --leading-loose: 1.6;
+
+  /* === Spacing — base 4px so p-1=4, p-2=8, p-4=16, p-6=24, p-8=32 === */
+  --spacing: 0.25rem;
+
+  /* === Radius === */
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-pill: 9999px;
+
+  /* === Elevation === */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 24px 48px rgba(0, 0, 0, 0.5);
+
+  /* === Motion === */
+  --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* =====================================================================
+ * :root — brand color values + shadcn aliases
+ * Single source of truth for hex/rgba; @theme inline references these.
+ * ==================================================================== */
+
+:root {
+  /* Brand color values (matches design/design.md Section A) */
+  --bg: #0A1418;
+  --bg-glow: radial-gradient(ellipse at 50% -20%, rgba(91, 192, 235, 0.08), transparent 60%);
+  --surface: #0F1A1F;
+  --surface-2: #172226;
+  --surface-3: #1F2C32;
+  --border-strong: #2A3A42;
+  --text: #FFFFFF;
+  --text-muted: #7C8B95;
+  --text-subtle: #5A6770;
+  --accent-hover: #B8EF00;
+  --accent-fg: #0A1418;
+  --buy: #C8FF00;
+  --buy-soft: rgba(200, 255, 0, 0.12);
+  --sell: #E84545;
+  --sell-soft: rgba(232, 69, 69, 0.12);
+  --warning: #FFB347;
+  --warning-soft: rgba(255, 179, 71, 0.12);
+  --info: #5BC0EB;
+  --selection: rgba(200, 255, 0, 0.06);
+
+  /* shadcn aliases — point at brand tokens so shadcn primitives inherit our look */
+  --background: var(--bg);
+  --foreground: var(--text);
+  --card: var(--surface);
+  --card-foreground: var(--text);
+  --popover: var(--surface-3);
+  --popover-foreground: var(--text);
+  --primary: var(--buy);
+  --primary-foreground: var(--accent-fg);
+  --secondary: var(--surface-2);
+  --secondary-foreground: var(--text);
+  --muted: var(--surface-2);
+  --muted-foreground: var(--text-muted);
+  --accent: var(--buy);
+  --accent-foreground: var(--accent-fg);
+  --destructive: var(--sell);
+  --border: #1F2A30;
+  --input: var(--surface-2);
+  --ring: var(--buy);
+  --chart-1: var(--buy);
+  --chart-2: var(--info);
+  --chart-3: var(--warning);
+  --chart-4: var(--sell);
+  --chart-5: var(--text-muted);
+  --radius: 8px;
+
+  /* Motion (for inline / non-Tailwind use, e.g. lightweight-charts) */
+  --duration-fast: 100ms;
+  --duration-base: 150ms;
+  --duration-slow: 250ms;
+}
+
+@layer base {
+  * {
+    border-color: var(--border);
+    outline-color: color-mix(in oklab, var(--ring) 50%, transparent);
+  }
+  html {
+    font-family: var(--font-sans);
+  }
+  body {
+    background-color: var(--bg);
+    background-image: var(--bg-glow);
+    color: var(--text);
+    min-height: 100vh;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+}

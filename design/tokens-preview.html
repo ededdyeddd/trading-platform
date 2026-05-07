@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Trading Terminal — Design tokens preview</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  /* ====================================================================
+   * Tokens — mirror of web/src/app/globals.css :root + design/design.md A
+   * Edit globals.css to change the source of truth, then sync this file.
+   * =================================================================== */
+  :root {
+    /* color */
+    --bg: #0A1418;
+    --bg-glow: radial-gradient(ellipse at 50% -20%, rgba(91, 192, 235, 0.08), transparent 60%);
+    --surface: #0F1A1F;
+    --surface-2: #172226;
+    --surface-3: #1F2C32;
+    --border: #1F2A30;
+    --border-strong: #2A3A42;
+    --text: #FFFFFF;
+    --text-muted: #7C8B95;
+    --text-subtle: #5A6770;
+    --accent: #C8FF00;
+    --accent-hover: #B8EF00;
+    --accent-fg: #0A1418;
+    --buy: #C8FF00;
+    --buy-soft: rgba(200, 255, 0, 0.12);
+    --sell: #E84545;
+    --sell-soft: rgba(232, 69, 69, 0.12);
+    --warning: #FFB347;
+    --warning-soft: rgba(255, 179, 71, 0.12);
+    --info: #5BC0EB;
+    --selection: rgba(200, 255, 0, 0.06);
+
+    /* type */
+    --font-sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+    --font-mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    --text-xs: 0.6875rem;
+    --text-sm: 0.8125rem;
+    --text-base: 0.875rem;
+    --text-md: 1rem;
+    --text-lg: 1.125rem;
+    --text-xl: 1.5rem;
+    --text-2xl: 2rem;
+
+    /* radius */
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 9999px;
+
+    /* shadow */
+    --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+    --shadow-md: 0 8px 24px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 24px 48px rgba(0, 0, 0, 0.5);
+
+    /* motion */
+    --duration-fast: 100ms;
+    --duration-base: 150ms;
+    --duration-slow: 250ms;
+    --ease-default: cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background-color: var(--bg);
+    background-image: var(--bg-glow);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: var(--text-base);
+    line-height: 1.5;
+    min-height: 100vh;
+    padding: 48px 32px 80px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; }
+
+  /* Page header */
+  .page-header { margin-bottom: 64px; padding-bottom: 32px; border-bottom: 1px solid var(--border); }
+  .page-header h1 { font-size: var(--text-2xl); font-weight: 700; letter-spacing: -0.02em; margin-bottom: 12px; }
+  .page-header p { color: var(--text-muted); font-size: var(--text-md); max-width: 640px; }
+  .page-header code { font-family: var(--font-mono); font-size: 0.92em; background: var(--surface-2); padding: 2px 6px; border-radius: var(--radius-sm); color: var(--text); }
+
+  /* Section */
+  section { margin-bottom: 64px; }
+  section > h2 { font-size: var(--text-xl); font-weight: 600; margin-bottom: 8px; }
+  section > p.lede { color: var(--text-muted); font-size: var(--text-sm); margin-bottom: 24px; }
+
+  /* Color grid */
+  .colors {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 16px;
+  }
+  .color-card {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    transition: transform var(--duration-base) var(--ease-default);
+  }
+  .color-card:hover { transform: translateY(-2px); }
+  .color-chip {
+    height: 96px;
+    width: 100%;
+    border-bottom: 1px solid var(--border);
+  }
+  .color-chip.checker {
+    background-image:
+      linear-gradient(45deg, var(--surface-2) 25%, transparent 25%),
+      linear-gradient(-45deg, var(--surface-2) 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, var(--surface-2) 75%),
+      linear-gradient(-45deg, transparent 75%, var(--surface-2) 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+  }
+  .color-meta { padding: 12px 14px; }
+  .color-name { font-family: var(--font-mono); font-size: var(--text-sm); font-weight: 500; }
+  .color-value { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin-top: 2px; }
+  .color-use { font-size: var(--text-xs); color: var(--text-subtle); margin-top: 8px; line-height: 1.4; }
+
+  /* Type */
+  .type-row {
+    display: grid;
+    grid-template-columns: 200px 80px 1fr;
+    align-items: baseline;
+    padding: 16px 0;
+    border-bottom: 1px solid var(--border);
+    gap: 24px;
+  }
+  .type-row:last-child { border-bottom: none; }
+  .type-token { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text-muted); }
+  .type-size { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-subtle); }
+  .type-sample { color: var(--text); }
+
+  .weight-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-top: 24px; }
+  .weight-card { padding: 16px; background: var(--surface); border-radius: var(--radius-md); }
+  .weight-sample { font-size: var(--text-lg); margin-bottom: 6px; }
+  .weight-meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+
+  /* Spacing */
+  .spacing-list { display: flex; flex-direction: column; gap: 12px; }
+  .spacing-row {
+    display: grid;
+    grid-template-columns: 140px 80px 1fr;
+    align-items: center;
+    gap: 16px;
+  }
+  .spacing-token { font-family: var(--font-mono); font-size: var(--text-sm); color: var(--text); }
+  .spacing-value { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); }
+  .spacing-bar { background: var(--accent); height: 24px; border-radius: var(--radius-sm); }
+
+  /* Radius */
+  .radius-row { display: flex; gap: 24px; flex-wrap: wrap; align-items: flex-end; }
+  .radius-card { display: flex; flex-direction: column; align-items: center; gap: 10px; }
+  .radius-shape { width: 96px; height: 96px; background: var(--surface-2); border: 1px solid var(--border-strong); }
+  .radius-meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); text-align: center; }
+  .radius-meta strong { color: var(--text); display: block; margin-bottom: 2px; font-weight: 500; }
+
+  /* Shadow */
+  .shadow-row { display: flex; gap: 32px; flex-wrap: wrap; padding-top: 16px; }
+  .shadow-card { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+  .shadow-shape { width: 120px; height: 80px; background: var(--surface-3); border-radius: var(--radius-lg); }
+  .shadow-shape.sm { box-shadow: var(--shadow-sm); }
+  .shadow-shape.md { box-shadow: var(--shadow-md); }
+  .shadow-shape.lg { box-shadow: var(--shadow-lg); }
+  .shadow-meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); text-align: center; }
+  .shadow-meta strong { color: var(--text); display: block; margin-bottom: 2px; font-weight: 500; }
+
+  /* Components preview */
+  .component-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 800px) { .component-grid { grid-template-columns: 1fr; } }
+  .component-card { background: var(--surface); border-radius: var(--radius-lg); padding: 20px; }
+  .component-label { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--text-muted); margin-bottom: 16px; text-transform: uppercase; letter-spacing: 0.05em; }
+
+  /* Mock buttons */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 8px 16px; font: 500 var(--text-base)/1 var(--font-sans); border-radius: var(--radius-pill); border: none; cursor: pointer; transition: background-color var(--duration-base) var(--ease-default); }
+  .btn-primary { background: var(--accent); color: var(--accent-fg); }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-sell { background: var(--surface-2); color: var(--sell); }
+  .btn-sell.emphasis { background: var(--sell); color: var(--text); }
+  .btn-white { background: var(--text); color: var(--bg); }
+  .btn-ghost { background: transparent; color: var(--text); }
+  .btn-ghost:hover { background: var(--surface-2); }
+  .btn-icon { width: 32px; height: 32px; padding: 0; justify-content: center; border-radius: 9999px; background: var(--surface-2); color: var(--text); }
+  .btn-icon:hover { background: var(--surface-3); }
+
+  .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  /* Inputs */
+  .input { width: 100%; background: var(--surface-2); border: 1px solid transparent; padding: 8px 12px; border-radius: var(--radius-md); color: var(--text); font: var(--text-base) var(--font-mono); outline: none; transition: border-color var(--duration-base) var(--ease-default); }
+  .input:focus { border-color: var(--accent); }
+
+  /* Pill tabs */
+  .pill-tabs { display: inline-flex; background: var(--surface-2); border-radius: var(--radius-pill); padding: 2px; }
+  .pill-tab { padding: 6px 16px; border-radius: var(--radius-pill); font: 500 var(--text-sm) var(--font-sans); cursor: pointer; }
+  .pill-tab.active.buy { background: var(--accent); color: var(--accent-fg); }
+  .pill-tab.active.sell { background: var(--sell); color: var(--text); }
+  .pill-tab:not(.active) { color: var(--text-muted); }
+
+  /* Status badges */
+  .badge { display: inline-block; padding: 2px 8px; font: 500 var(--text-xs) var(--font-sans); border-radius: var(--radius-sm); }
+  .badge.working { background: var(--warning-soft); color: var(--warning); }
+  .badge.filled { background: var(--buy-soft); color: var(--buy); }
+  .badge.canceled { background: var(--sell-soft); color: var(--sell); }
+  .badge.outline { background: transparent; border: 1px solid var(--border-strong); color: var(--text-muted); }
+
+  /* Side indicator */
+  .side { font-family: var(--font-sans); font-weight: 500; font-size: var(--text-sm); }
+  .side.buy { color: var(--buy); }
+  .side.sell { color: var(--sell); }
+
+  /* Mock table */
+  .table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+  .table th { text-align: left; color: var(--text-muted); font-weight: 500; padding: 8px 12px; }
+  .table th:not(:first-child) { text-align: right; }
+  .table td { padding: 10px 12px; }
+  .table td:not(:first-child) { text-align: right; font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .table .symbol { font-weight: 600; }
+  .table .change-up { color: var(--buy); }
+  .table .change-down { color: var(--sell); }
+  .table .selected { background: var(--surface-2); position: relative; }
+  .table .selected::after { content: ''; position: absolute; inset: 0; background: var(--selection); pointer-events: none; }
+  .table tr:hover { background: var(--surface-2); }
+
+  /* Candle preview */
+  .candles { display: flex; gap: 4px; align-items: flex-end; height: 100px; padding: 16px; background: var(--surface); border-radius: var(--radius-md); }
+  .candle { width: 8px; }
+  .candle.up { background: var(--buy); }
+  .candle.down { background: var(--sell); }
+
+  /* Order book mock */
+  .book-row { display: grid; grid-template-columns: 1fr 1fr 1fr; padding: 4px 12px; font: var(--text-xs) var(--font-mono); position: relative; }
+  .book-row > * { position: relative; z-index: 1; text-align: right; }
+  .book-row > :first-child { text-align: left; }
+  .book-row::before { content: ''; position: absolute; inset: 0 0 0 auto; }
+  .book-row.bid::before { background: var(--buy-soft); }
+  .book-row.ask::before { background: var(--sell-soft); }
+  .book-row.bid > :first-child { color: var(--buy); }
+  .book-row.ask > :first-child { color: var(--sell); }
+
+  /* Footnote */
+  .footnote { color: var(--text-subtle); font-size: var(--text-xs); margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--border); }
+  .footnote code { font-family: var(--font-mono); color: var(--text-muted); }
+</style>
+</head>
+<body>
+<div class="container">
+
+  <header class="page-header">
+    <h1>Trading Terminal — design tokens</h1>
+    <p>Visual preview of every token defined in <code>web/src/app/globals.css</code>, mirrored from <code>design/design.md</code> Section A. Colors and types extracted from Robinhood Legends + Revolut style references.</p>
+  </header>
+
+  <!-- ============================================================
+       COLORS
+       ============================================================ -->
+  <section>
+    <h2>Color</h2>
+    <p class="lede">All color tokens. Click into <code>design.md</code> for usage rules per token.</p>
+    <div class="colors">
+
+      <div class="color-card">
+        <div class="color-chip" style="background: var(--bg);"></div>
+        <div class="color-meta">
+          <div class="color-name">--bg</div>
+          <div class="color-value">#0A1418</div>
+          <div class="color-use">App background</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-chip" style="background: var(--bg); background-image: var(--bg-glow);"></div>
+        <div class="color-meta">
+          <div class="color-name">--bg-glow</div>
+          <div class="color-value">radial cyan 8%</div>
+          <div class="color-use">Top-of-viewport glow over bg</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-chip" style="background: var(--surface);"></div>
+        <div class="color-meta">
+          <div class="color-name">--surface</div>
+          <div class="color-value">#0F1A1F</div>
+          <div class="color-use">Panel background</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-chip" style="background: var(--surface-2);"></div>
+        <div class="color-meta">
+          <div class="color-name">--surface-2</div>
+          <div class="color-value">#172226</div>
+          <div class="color-use">Hover, selected, input bg</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-chip" style="background: var(--surface-3);"></div>
+        <div class="color-meta">
+          <div class="color-name">--surface-3</div>
+          <div class="color-value">#1F2C32</div>
+          <div class="color-use">Modal bg, elevated cards</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-chip" style="background: var(--border);"></div>
+        <div class="color-meta">
+          <div class="color-name">--border</div>
+          <div class="color-value">#1F2A30</div>
+          <div class="color-use">Subtle dividers</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-chip" style="background: var(--border-strong);"></div>
+        <div class="color-meta">
+          <div class="color-name">--border-strong</div>
+          <div class="color-value">#2A3A42</div>
+          <div class="color-use">Input borders, strong dividers</div>
+        </div>
+      </div>
+
+      <div class="color-card">
+        <div class="color-chip" style="background: var(--text);"></div>
+        <div class="color-meta">
+          <div class="color-name">--text</div>
+          <div class="color-value">#FFFFFF</div>
+          <div class="color-use">Primary text, symbols, prices</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-chip" style="background: var(--text-muted);"></div>
+        <div class="color-meta">
+          <div class="color-name">--text-muted</div>
+          <div class="color-value">#7C8B95</div>
+          <div class="color-use">Column headers, secondary</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-chip" style="background: var(--text-subtle);"></div>
+        <div class="color-meta">
+          <div class="color-name">--text-subtle</div>
+          <div class="color-value">#5A6770</div>
+          <div class="color-use">Tertiary, axis labels</div>
+        </div>
+      </div>
+
+      <div class="color-card">
+        <div class="color-chip" style="background: var(--accent);"></div>
+        <div class="color-meta">
+          <div class="color-name">--accent / --buy</div>
+          <div class="color-value">#C8FF00</div>
+          <div class="color-use">Primary CTA, up candles, buy</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-chip" style="background: var(--accent-hover);"></div>
+        <div class="color-meta">
+          <div class="color-name">--accent-hover</div>
+          <div class="color-value">#B8EF00</div>
+          <div class="color-use">Hover on accent surfaces</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-chip" style="background: var(--accent-fg);"></div>
+        <div class="color-meta">
+          <div class="color-name">--accent-fg</div>
+          <div class="color-value">#0A1418</div>
+          <div class="color-use">Text on accent (Buy button)</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-chip checker" style="background-color: var(--buy-soft);"></div>
+        <div class="color-meta">
+          <div class="color-name">--buy-soft</div>
+          <div class="color-value">rgba(200,255,0,0.12)</div>
+          <div class="color-use">Filled badge bg, depth bar (bids)</div>
+        </div>
+      </div>
+
+      <div class="color-card">
+        <div class="color-chip" style="background: var(--sell);"></div>
+        <div class="color-meta">
+          <div class="color-name">--sell</div>
+          <div class="color-value">#E84545</div>
+          <div class="color-use">Down candles, sell, negative</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-chip checker" style="background-color: var(--sell-soft);"></div>
+        <div class="color-meta">
+          <div class="color-name">--sell-soft</div>
+          <div class="color-value">rgba(232,69,69,0.12)</div>
+          <div class="color-use">Canceled badge, depth bar (asks)</div>
+        </div>
+      </div>
+
+      <div class="color-card">
+        <div class="color-chip" style="background: var(--warning);"></div>
+        <div class="color-meta">
+          <div class="color-name">--warning</div>
+          <div class="color-value">#FFB347</div>
+          <div class="color-use">Working status, alerts</div>
+        </div>
+      </div>
+      <div class="color-card">
+        <div class="color-chip checker" style="background-color: var(--warning-soft);"></div>
+        <div class="color-meta">
+          <div class="color-name">--warning-soft</div>
+          <div class="color-value">rgba(255,179,71,0.12)</div>
+          <div class="color-use">Working status badge bg</div>
+        </div>
+      </div>
+
+      <div class="color-card">
+        <div class="color-chip" style="background: var(--info);"></div>
+        <div class="color-meta">
+          <div class="color-name">--info</div>
+          <div class="color-value">#5BC0EB</div>
+          <div class="color-use">Info icons, link text</div>
+        </div>
+      </div>
+
+      <div class="color-card">
+        <div class="color-chip checker" style="background-color: var(--selection);"></div>
+        <div class="color-meta">
+          <div class="color-name">--selection</div>
+          <div class="color-value">rgba(200,255,0,0.06)</div>
+          <div class="color-use">Selected table row tint</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       TYPOGRAPHY
+       ============================================================ -->
+  <section>
+    <h2>Typography</h2>
+    <p class="lede">Inter for sans (closest open-source approximation of Robinhood's GT-America-like type and Revolut's Aeonik). JetBrains Mono for prices and chart axis numbers.</p>
+
+    <h3 style="font-size: var(--text-md); margin-top: 24px; margin-bottom: 12px; color: var(--text-muted); font-weight: 500;">Sizes</h3>
+    <div class="type-row"><div class="type-token">--text-xs</div><div class="type-size">11px</div><div class="type-sample" style="font-size: var(--text-xs);">The quick brown fox jumps over $122.79 — 17,172,625</div></div>
+    <div class="type-row"><div class="type-token">--text-sm</div><div class="type-size">13px</div><div class="type-sample" style="font-size: var(--text-sm);">The quick brown fox jumps over $122.79 — 17,172,625</div></div>
+    <div class="type-row"><div class="type-token">--text-base</div><div class="type-size">14px</div><div class="type-sample" style="font-size: var(--text-base);">The quick brown fox jumps over $122.79 — 17,172,625</div></div>
+    <div class="type-row"><div class="type-token">--text-md</div><div class="type-size">16px</div><div class="type-sample" style="font-size: var(--text-md);">The quick brown fox jumps over $122.79</div></div>
+    <div class="type-row"><div class="type-token">--text-lg</div><div class="type-size">18px</div><div class="type-sample" style="font-size: var(--text-lg);">The quick brown fox jumps</div></div>
+    <div class="type-row"><div class="type-token">--text-xl</div><div class="type-size">24px</div><div class="type-sample" style="font-size: var(--text-xl);">The quick brown fox</div></div>
+    <div class="type-row"><div class="type-token">--text-2xl</div><div class="type-size">32px</div><div class="type-sample" style="font-size: var(--text-2xl); font-weight: 600;">$9,605.17</div></div>
+
+    <h3 style="font-size: var(--text-md); margin-top: 32px; margin-bottom: 12px; color: var(--text-muted); font-weight: 500;">Weights</h3>
+    <div class="weight-grid">
+      <div class="weight-card"><div class="weight-sample" style="font-weight: 400;">Trading terminal</div><div class="weight-meta">--font-weight-regular · 400</div></div>
+      <div class="weight-card"><div class="weight-sample" style="font-weight: 500;">Trading terminal</div><div class="weight-meta">--font-weight-medium · 500</div></div>
+      <div class="weight-card"><div class="weight-sample" style="font-weight: 600;">Trading terminal</div><div class="weight-meta">--font-weight-semibold · 600</div></div>
+      <div class="weight-card"><div class="weight-sample" style="font-weight: 700;">Trading terminal</div><div class="weight-meta">--font-weight-bold · 700</div></div>
+    </div>
+
+    <h3 style="font-size: var(--text-md); margin-top: 32px; margin-bottom: 12px; color: var(--text-muted); font-weight: 500;">Mono — for prices, chart axis</h3>
+    <div class="weight-card" style="font-family: var(--font-mono);">
+      <div class="weight-sample" style="font-size: var(--text-md); font-feature-settings: 'tnum';">$122.79 · 1.49% · 23,047,227</div>
+      <div class="weight-meta">--font-mono · JetBrains Mono · tabular-nums</div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       SPACING
+       ============================================================ -->
+  <section>
+    <h2>Spacing</h2>
+    <p class="lede">4px scale. <code style="font-family: var(--font-mono); font-size: 0.92em; background: var(--surface-2); padding: 2px 6px; border-radius: var(--radius-sm); color: var(--text);">--spacing: 0.25rem</code> in globals.css drives Tailwind's <code style="font-family: var(--font-mono); font-size: 0.92em; background: var(--surface-2); padding: 2px 6px; border-radius: var(--radius-sm); color: var(--text);">p-N</code> / <code style="font-family: var(--font-mono); font-size: 0.92em; background: var(--surface-2); padding: 2px 6px; border-radius: var(--radius-sm); color: var(--text);">m-N</code> / <code style="font-family: var(--font-mono); font-size: 0.92em; background: var(--surface-2); padding: 2px 6px; border-radius: var(--radius-sm); color: var(--text);">gap-N</code> utilities.</p>
+
+    <div class="spacing-list">
+      <div class="spacing-row"><div class="spacing-token">--space-1 / p-1</div><div class="spacing-value">4px</div><div class="spacing-bar" style="width: 4px;"></div></div>
+      <div class="spacing-row"><div class="spacing-token">--space-2 / p-2</div><div class="spacing-value">8px</div><div class="spacing-bar" style="width: 8px;"></div></div>
+      <div class="spacing-row"><div class="spacing-token">--space-3 / p-3</div><div class="spacing-value">12px</div><div class="spacing-bar" style="width: 12px;"></div></div>
+      <div class="spacing-row"><div class="spacing-token">--space-4 / p-4</div><div class="spacing-value">16px</div><div class="spacing-bar" style="width: 16px;"></div></div>
+      <div class="spacing-row"><div class="spacing-token">--space-5 / p-5</div><div class="spacing-value">20px</div><div class="spacing-bar" style="width: 20px;"></div></div>
+      <div class="spacing-row"><div class="spacing-token">--space-6 / p-6</div><div class="spacing-value">24px</div><div class="spacing-bar" style="width: 24px;"></div></div>
+      <div class="spacing-row"><div class="spacing-token">--space-8 / p-8</div><div class="spacing-value">32px</div><div class="spacing-bar" style="width: 32px;"></div></div>
+      <div class="spacing-row"><div class="spacing-token">--space-10 / p-10</div><div class="spacing-value">40px</div><div class="spacing-bar" style="width: 40px;"></div></div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       RADIUS
+       ============================================================ -->
+  <section>
+    <h2>Radius</h2>
+    <p class="lede">Smaller for inputs/badges, larger for cards/modals; pill is full-rounded for CTAs and chips.</p>
+    <div class="radius-row">
+      <div class="radius-card"><div class="radius-shape" style="border-radius: var(--radius-sm);"></div><div class="radius-meta"><strong>--radius-sm</strong>4px</div></div>
+      <div class="radius-card"><div class="radius-shape" style="border-radius: var(--radius-md);"></div><div class="radius-meta"><strong>--radius-md</strong>8px</div></div>
+      <div class="radius-card"><div class="radius-shape" style="border-radius: var(--radius-lg);"></div><div class="radius-meta"><strong>--radius-lg</strong>12px</div></div>
+      <div class="radius-card"><div class="radius-shape" style="border-radius: var(--radius-xl);"></div><div class="radius-meta"><strong>--radius-xl</strong>16px</div></div>
+      <div class="radius-card"><div class="radius-shape" style="border-radius: var(--radius-pill); width: 140px;"></div><div class="radius-meta"><strong>--radius-pill</strong>9999px</div></div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       SHADOWS
+       ============================================================ -->
+  <section>
+    <h2>Elevation</h2>
+    <p class="lede">Robinhood is largely flat; Revolut uses a soft drop. Modals carry the heaviest shadow.</p>
+    <div class="shadow-row">
+      <div class="shadow-card"><div class="shadow-shape sm"></div><div class="shadow-meta"><strong>--shadow-sm</strong>Subtle button lift</div></div>
+      <div class="shadow-card"><div class="shadow-shape md"></div><div class="shadow-meta"><strong>--shadow-md</strong>Modals, popovers</div></div>
+      <div class="shadow-card"><div class="shadow-shape lg"></div><div class="shadow-meta"><strong>--shadow-lg</strong>Lifted dialogs</div></div>
+    </div>
+  </section>
+
+  <!-- ============================================================
+       COMPONENT PATTERNS
+       ============================================================ -->
+  <section>
+    <h2>Component patterns</h2>
+    <p class="lede">Live previews of patterns from <code>design/design.md</code> Section B, rendered with the tokens above.</p>
+
+    <div class="component-grid">
+
+      <div class="component-card">
+        <div class="component-label">Buttons</div>
+        <div class="row">
+          <button class="btn btn-primary">Buy</button>
+          <button class="btn btn-sell">Sell</button>
+          <button class="btn btn-sell emphasis">Sell</button>
+        </div>
+        <div class="row" style="margin-top: 12px;">
+          <button class="btn btn-white">Trade</button>
+          <button class="btn btn-ghost">Cancel</button>
+          <button class="btn btn-icon" aria-label="more">…</button>
+        </div>
+      </div>
+
+      <div class="component-card">
+        <div class="component-label">Inputs</div>
+        <input class="input" placeholder="Symbol" type="text" value="NVDA">
+        <input class="input" placeholder="Quantity" type="text" value="1" style="margin-top: 8px;">
+        <input class="input" placeholder="Limit price" type="text" value="121.90" style="margin-top: 8px;">
+      </div>
+
+      <div class="component-card">
+        <div class="component-label">Tabs / pill tabs</div>
+        <div class="pill-tabs">
+          <div class="pill-tab active buy">Buy</div>
+          <div class="pill-tab">Sell</div>
+        </div>
+        <div class="pill-tabs" style="margin-left: 12px;">
+          <div class="pill-tab">Buy</div>
+          <div class="pill-tab active sell">Sell</div>
+        </div>
+      </div>
+
+      <div class="component-card">
+        <div class="component-label">Status badges</div>
+        <div class="row">
+          <span class="badge working">Working</span>
+          <span class="badge filled">Filled</span>
+          <span class="badge canceled">Canceled</span>
+          <span class="badge outline">Outline</span>
+        </div>
+      </div>
+
+      <div class="component-card">
+        <div class="component-label">Side indicator</div>
+        <div class="row">
+          <span class="side buy">Buy</span>
+          <span class="side sell">Sell</span>
+          <span style="color: var(--text-muted); font-size: var(--text-sm);">(in tables, table cells)</span>
+        </div>
+      </div>
+
+      <div class="component-card">
+        <div class="component-label">Chart candles</div>
+        <div class="candles">
+          <div class="candle up" style="height: 60%;"></div>
+          <div class="candle up" style="height: 80%;"></div>
+          <div class="candle down" style="height: 70%;"></div>
+          <div class="candle up" style="height: 40%;"></div>
+          <div class="candle down" style="height: 55%;"></div>
+          <div class="candle down" style="height: 65%;"></div>
+          <div class="candle up" style="height: 75%;"></div>
+          <div class="candle up" style="height: 90%;"></div>
+          <div class="candle down" style="height: 50%;"></div>
+          <div class="candle up" style="height: 35%;"></div>
+        </div>
+      </div>
+
+      <div class="component-card" style="grid-column: 1 / -1;">
+        <div class="component-label">Watchlist table</div>
+        <table class="table">
+          <thead>
+            <tr>
+              <th>Symbol</th>
+              <th>Net chg</th>
+              <th>Change %</th>
+              <th>Last</th>
+              <th>Volume</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td class="symbol">AAPL</td>
+              <td class="change-down">▼ $3.07</td>
+              <td class="change-down">▼ 1.35%</td>
+              <td>$223.71</td>
+              <td>17,172,625</td>
+            </tr>
+            <tr>
+              <td class="symbol">AMD</td>
+              <td class="change-up">▲ $2.38</td>
+              <td class="change-up">▲ 1.49%</td>
+              <td>$162.16</td>
+              <td>23,047,227</td>
+            </tr>
+            <tr class="selected">
+              <td class="symbol">NVDA</td>
+              <td class="change-up">▲ $3.05</td>
+              <td class="change-up">▲ 2.57%</td>
+              <td>$121.90</td>
+              <td>210,335,961</td>
+            </tr>
+            <tr>
+              <td class="symbol">TSLA</td>
+              <td class="change-down">▼ $9.53</td>
+              <td class="change-down">▼ 3.83%</td>
+              <td>$239.49</td>
+              <td>54,356,236</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="component-card">
+        <div class="component-label">Order book</div>
+        <div class="book-row ask"><span>121.94</span><span>132</span><span>2,418</span></div>
+        <div class="book-row ask"><span>121.93</span><span>520</span><span>2,286</span></div>
+        <div class="book-row ask"><span>121.92</span><span>841</span><span>1,766</span></div>
+        <div class="book-row ask"><span>121.91</span><span>200</span><span>925</span></div>
+        <div class="book-row" style="padding: 8px 12px; font: 600 var(--text-base) var(--font-mono); color: var(--accent); justify-content: space-between; display: flex;"><span>121.90</span><span style="color: var(--text-muted); font-weight: 400; font-size: var(--text-xs);">last price</span></div>
+        <div class="book-row bid"><span>121.89</span><span>180</span><span>180</span></div>
+        <div class="book-row bid"><span>121.88</span><span>650</span><span>830</span></div>
+        <div class="book-row bid"><span>121.87</span><span>410</span><span>1,240</span></div>
+        <div class="book-row bid"><span>121.86</span><span>290</span><span>1,530</span></div>
+      </div>
+
+      <div class="component-card">
+        <div class="component-label">Account hero</div>
+        <div style="font-size: var(--text-sm); color: var(--text-muted);">Individual</div>
+        <div style="font-size: var(--text-2xl); font-weight: 600; margin-top: 4px;">$9,605.17</div>
+        <div style="font-size: var(--text-sm); color: var(--sell); margin-top: 4px;">▼ $50.18 (0.52%) Today</div>
+      </div>
+
+    </div>
+  </section>
+
+  <p class="footnote">
+    Tokens defined in <code>web/src/app/globals.css</code> (mirrored here). Documented in <code>design/design.md</code>. To change a token: edit <code>globals.css</code> + <code>design.md</code>, then update this file.
+  </p>
+
+</div>
+</body>
+</html>
