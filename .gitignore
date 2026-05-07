@@ -1,0 +1,29 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Node (in case we add a JS stack later)
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+.cache/
+*.log
+.env
+.env.local
+.env.*.local
+
+# Figma / design exports (large binaries — keep in cloud, not git)
+design/exports/
+*.fig
+
+# Python (just in case)
+__pycache__/
+*.pyc
+.venv/
