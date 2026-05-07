@@ -49,7 +49,7 @@ export function ChartPanel() {
 
   return (
     <section className="flex h-full flex-col bg-surface">
-      <ChartToolbar pnl={position?.pnl ?? 0} />
+      <ChartToolbar pnl={position?.pnl ?? null} />
       <div className="relative flex-1 overflow-hidden">
         <ChartOverlay
           symbol={ACTIVE_SYMBOL}
@@ -69,7 +69,7 @@ export function ChartPanel() {
  * Toolbar
  * ─────────────────────────────────────────────────────────────────────*/
 
-function ChartToolbar({ pnl }: { pnl: number }) {
+function ChartToolbar({ pnl }: { pnl: number | null }) {
   return (
     <div className="flex h-11 shrink-0 items-center gap-1 border-b border-border px-2">
       <ToolbarBtn label="1m" />
@@ -84,7 +84,7 @@ function ChartToolbar({ pnl }: { pnl: number }) {
       <div className="flex-1" />
       <ToolbarBtn icon={<Save size={13} />} label="Save" hasChevron />
       <ToolbarBtn icon={<Camera size={13} />} />
-      <PnlTag value={pnl} />
+      {pnl !== null && <PnlTag value={pnl} />}
       <ToolbarBtn icon={<Maximize2 size={13} />} />
     </div>
   );

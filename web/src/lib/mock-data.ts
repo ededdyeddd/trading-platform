@@ -91,34 +91,22 @@ export const ACTIVE_SYMBOL = "NVDA";
  * ─────────────────────────────────────────────────────────────────────*/
 
 export const ACCOUNT: Account = {
-  balance: 10_000.09,
-  buyingPower: 8_861.10,
-  cash: 9_431.10,
-  dayPnL: -50.18,
-  totalPnL: 235.40,
-  marginUsed: 1_138.99,
-  equity: 9_605.17,
+  balance: 10_000.0,
+  buyingPower: 10_000.0,
+  cash: 10_000.0,
+  dayPnL: 0,
+  totalPnL: 0,
+  marginUsed: 0,
+  equity: 10_000.0,
 };
 
 /* ──────────────────────────────────────────────────────────────────────
  * Positions / orders
  * ─────────────────────────────────────────────────────────────────────*/
 
-export const POSITIONS: Position[] = [
-  {
-    id: "p1",
-    symbol: "NVDA",
-    side: "buy",
-    type: "market",
-    volume: 1,
-    openPrice: 121.85,
-    currentPrice: 121.90,
-    takeProfit: 122.50,
-    stopLoss: 121.40,
-    pnl: 0.05,
-    positionId: "4857202",
-  },
-];
+// Default state: no open positions. Users will open / edit / close
+// positions during research sessions (functionality TBD).
+export const POSITIONS: Position[] = [];
 
 export const PENDING_ORDERS: PendingOrder[] = [];
 
