@@ -75,9 +75,13 @@ Tailwind v4 uses `@theme` blocks in CSS instead of `tailwind.config.ts`, so toke
 └── StatusBar ────────────────────────────────────────────────┘
 ```
 
+**Pre-step (validation): grayscale text wireframe** ✅ DONE — preserved at [web/src/app/wireframe/page.tsx](../web/src/app/wireframe/page.tsx) (visit `/wireframe` for reference while iterating)
+
+**Pre-step (resize shell): replace fixed CSS grid with resizable panels** ✅ DONE — `react-resizable-panels` v4 via shadcn `<ResizablePanelGroup>` / `<ResizablePanel>` / `<ResizableHandle>`. Layout: outer horizontal (Context | Middle | Order); inner vertical (Chart / Positions). SideRail stays at fixed 48px outside the panel group. Header and Status remain full-width fixed-height. Drag handles use `bg-border` token. (Layout persistence via v4's `useDefaultLayout` hook deferred — sizes reset on refresh for now.)
+
 **Components to build (top→bottom, left→right):**
 
-1. **`<HeaderBar>`** — [web/src/components/header-bar.tsx](../web/src/components/header-bar.tsx)
+1. **`<HeaderBar>`** — [web/src/components/header-bar.tsx](../web/src/components/header-bar.tsx) ✅ DONE
    - Logo · multi-instrument tabs (AAPL, NVDA, AMZN, +) with active state and red-bar position indicator · `Demo · $9,605.17 ▾` account selector · notification/alarm/apps/avatar icons · Deposit pill CTA
 2. **`<SideRail>`** — [web/src/components/side-rail.tsx](../web/src/components/side-rail.tsx)
    - 32px vertical icon column: Instruments / Calendar / Settings. Active icon controls the contextual panel.
@@ -106,11 +110,11 @@ Tailwind v4 uses `@theme` blocks in CSS instead of `tailwind.config.ts`, so toke
    - Account stats (label + mono value pairs): Balance · Buying power · Cash · Day P/L · Total P/L · Margin used (kept for prototype realism)
    - Right side: "Close all ▾" + signal indicator
 
-**Mock data — [web/src/lib/mock-data.ts](../web/src/lib/mock-data.ts):**
-- Watchlist instruments (~12 equities, Robinhood-style: AAPL, AMD, AMZN, GOOGL, META, MSFT, NFLX, NVDA, TSLA, …) with bid, ask, signal arrow, change %, last price, volume
-- Active instrument's OHLC candle data
-- Open positions, pending orders, closed orders
-- Account stats
+**Mock data — [web/src/lib/mock-data.ts](../web/src/lib/mock-data.ts):** ✅ DONE
+- 13-instrument watchlist (Robinhood-style: AAPL, AMC, AMD, AMZN, DIS, F, GOOGL, KO, META, MSFT, NFLX, NVDA, TSLA) with bid, ask, last, change, change%, volume, signal
+- Deterministic seeded random-walk candle generator → `CANDLES` for AAPL/NVDA/AMZN (180 candles each, 1m intervals)
+- One open NVDA position, no pending orders, full account stats, sentiment %
+- Helpers: `getInstrument`, `hasOpenPosition`, `formatUsd`, `formatPct`
 
 **State (kept simple, in `page.tsx`):**
 - `activeInstrument` (string symbol)
