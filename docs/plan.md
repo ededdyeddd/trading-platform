@@ -86,7 +86,7 @@ Tailwind v4 uses `@theme` blocks in CSS instead of `tailwind.config.ts`, so toke
 2. **`<SideRail>`** — [web/src/components/side-rail.tsx](../web/src/components/side-rail.tsx) ✅ DONE
    - Vertical icon column inside the fixed 48px aside: Instruments / Calendar / Settings. Active icon highlighted with `--color-surface-2` bg + 2px `--color-accent` left strip. Click swaps the contextual panel content via `activeRailPanel` state in `page.tsx`.
 3. **`<ContextualPanel>`** wrapper — [web/src/components/contextual-panel.tsx](../web/src/components/contextual-panel.tsx) ✅ DONE — header shows panel title + close affordance, body is a vertical-scrolling region that renders one of:
-   - **`<InstrumentsPanel>`** — [web/src/components/instruments-panel.tsx](../web/src/components/instruments-panel.tsx) ✅ DONE — search input · Favorites collapsible · column headers · 13 watchlist rows from `WATCHLIST` (drag handle, ticker dot, semibold symbol, signal arrow ▲/▼, bid/ask in side-tinted chips). Active row uses `--color-surface-2` bg.
+   - **`<InstrumentsPanel>`** — [web/src/components/instruments-panel.tsx](../web/src/components/instruments-panel.tsx) ✅ DONE — sticky search input (controlled, with X-clear) · category dropdown (Favorites / Most traded / Top movers / Majors / Metals / Crypto / Indices / Stocks / Energy / Exotic / Minors / All) · column headers (Symbol / Signal / Bid / Ask) · filtered list from `WATCHLIST` via `filterInstruments(items, category, query, favorites)`. Each row leads with a star toggle (filled `--warning` amber when favorite, outline otherwise) wired to `useFavorites().toggle` and subscribes to `useQuote(symbol)` so bid/ask/signal update on the 5s tick. Per-instrument `precision` drives bid/ask decimal places (forex 5dp, JPY/metals 3dp, crypto/equities 2dp, etc.). Empty state when no match. **Active-instrument row** (the symbol whose chart is currently shown, i.e. `ACTIVE_SYMBOL`) gets `bg-surface-2` plus a 2px `--accent` strip on its left edge — same visual vocabulary as the side-rail's active icon and the header's active tab.
    - **`<SettingsPanel>`** — [web/src/components/settings-panel.tsx](../web/src/components/settings-panel.tsx) ✅ DONE — toggle groups: Show on chart (Signals / HMR / Price alerts / Open positions / TP-SL / Economic calendar with nested checkboxes for impact levels), Sound effects (with `?` help icon), Open order mode dropdown, Price source dropdown. Uses shadcn `<Switch>` and `<Checkbox>` primitives.
    - Calendar variant — placeholder copy for now.
 4. **`<ChartPanel>`** — [web/src/components/chart-panel.tsx](../web/src/components/chart-panel.tsx) ✅ DONE
@@ -115,10 +115,16 @@ Tailwind v4 uses `@theme` blocks in CSS instead of `tailwind.config.ts`, so toke
    - Right side: `Close all ▾` ghost button + 4-bar signal indicator
 
 **Mock data — [web/src/lib/mock-data.ts](../web/src/lib/mock-data.ts):** ✅ DONE
-- 13-instrument watchlist (Robinhood-style: AAPL, AMC, AMD, AMZN, DIS, F, GOOGL, KO, META, MSFT, NFLX, NVDA, TSLA) with bid, ask, last, change, change%, volume, signal
+- Multi-asset catalog (~50 instruments) tagged with `category` ∈ `stocks | majors | minors | exotic | metals | crypto | indices | energy` and a `favorite` flag. Coverage:
+  - **Stocks** (13, original Robinhood-style set): AAPL, AMC, AMD, AMZN, DIS, F, GOOGL, KO, META, MSFT, NFLX, NVDA, TSLA
+  - **Majors / Minors / Exotic** forex pairs (EUR/USD, GBP/USD, USD/JPY, …, EUR/JPY, EUR/AUD, …, USD/TRY, EUR/PLN, …)
+  - **Metals** (XAU, XAG, XPT, XPD / USD), **Crypto** (BTC, ETH, SOL, XRP, DOGE, ADA / USD), **Indices** (SPX500, NAS100, US30, GER40, UK100, JP225, HK50), **Energy** (WTI, BRENT, NGAS)
+- Per-instrument `precision` field — bid/ask formatted with the right decimal places per asset class
+- `CategoryFilter` union + `CATEGORY_OPTIONS` + `filterInstruments(items, category, query)` helper (sorts derive Most Traded by volume, Top Movers by |changePct|; rest match `category`; then substring-match on symbol/name)
 - Deterministic seeded random-walk candle generator → `CANDLES` for AAPL/NVDA/AMZN (180 candles each, 1m intervals)
-- One open NVDA position, no pending orders, full account stats, sentiment %
-- Helpers: `getInstrument`, `hasOpenPosition`, `formatUsd`, `formatPct`
+- Empty default state: no open positions, no pending orders, fresh-deposit account, sentiment % for AAPL/NVDA/AMZN
+- Helpers: `getInstrument`, `hasOpenPosition`, `formatUsd`, `formatPct`, `filterInstruments`
+- **Note:** the order panel / chart / positions still operate on `ACTIVE_SYMBOL = "NVDA"` (equities-only flow). The forex/crypto/etc. catalog is currently surfaced only via the InstrumentsPanel list — selecting a non-equity row doesn't yet swap the active instrument elsewhere.
 
 **State (kept simple, in `page.tsx`):**
 - `activeInstrument` (string symbol)
@@ -126,6 +132,19 @@ Tailwind v4 uses `@theme` blocks in CSS instead of `tailwind.config.ts`, so toke
 - `positionsPanelCollapsed` (boolean)
 - `orderTab` ("market" | "pending")
 - `orderSide` ("buy" | "sell" — set when user clicks Buy/Sell quote)
+
+**Favorites — [web/src/lib/favorites-context.tsx](../web/src/lib/favorites-context.tsx):** ✅ DONE
+- `<FavoritesProvider>` mounted in `page.tsx` holds a mutable `Set<string>` of starred symbols, seeded from `WATCHLIST[i].favorite`
+- Hook `useFavorites()` exposes `{ favorites, isFavorite, toggle }`. State is in-memory only (resets on refresh, same precedent as panel sizes)
+- `filterInstruments` takes the set as its fourth arg so the "Favorites" category filter reflects live toggles immediately
+
+**Live quotes — [web/src/lib/quotes-context.tsx](../web/src/lib/quotes-context.tsx):** ✅ DONE
+- **`TICK_INTERVAL_MS = 5_000` is the canonical heartbeat for the whole terminal** — any future mock-data block that simulates live motion (chart last candle, sentiment drift, account P/L, etc.) should `import { TICK_INTERVAL_MS } from "@/lib/quotes-context"` rather than define its own interval. One cadence keeps panels in sync.
+- `<QuotesProvider>` mounted in `page.tsx` (inside `SettingsProvider`) holds a `Record<symbol, {bid, ask, signal}>` keyed off `WATCHLIST`
+- A `setInterval` ticks every `TICK_INTERVAL_MS`, nudging each symbol's bid by a small random walk (~3 bps of mid-price). Spread is held constant; `signal` reflects the latest tick direction
+- Hooks: `useQuote(symbol)` for a single row, `useQuotes()` for the whole map
+- Consumers wired: InstrumentsPanel rows (all 50+ symbols) and OrderPanel's NVDA quote → `SellBuyQuoteSplit` + TP/SL/open-price defaults
+- **Future**: ChartPanel will read `useQuote(ACTIVE_SYMBOL)` to update the latest candle's close on each tick (deferred — not wired yet)
 
 ### 5. Create the Figma file via MCP
 Using `mcp__claude_ai_Figma__create_new_file`:
@@ -166,6 +185,8 @@ After the base is approved, when structure-source screenshots arrive:
 - [web/src/components/positions-panel.tsx](../web/src/components/positions-panel.tsx)
 - [web/src/components/status-bar.tsx](../web/src/components/status-bar.tsx)
 - [web/src/lib/mock-data.ts](../web/src/lib/mock-data.ts)
+- [web/src/lib/quotes-context.tsx](../web/src/lib/quotes-context.tsx) — `QuotesProvider` + `useQuote` hook (5s tick)
+- [web/src/lib/favorites-context.tsx](../web/src/lib/favorites-context.tsx) — `FavoritesProvider` + `useFavorites` hook (in-memory star toggle)
 - [docs/figma.md](figma.md), [docs/sync.md](sync.md)
 - New Figma file via MCP
 

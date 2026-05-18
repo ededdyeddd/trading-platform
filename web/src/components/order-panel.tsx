@@ -9,6 +9,7 @@ import {
   formatUsd,
   getInstrument,
 } from "@/lib/mock-data";
+import { useQuote } from "@/lib/quotes-context";
 import { TickerIcon } from "@/components/ticker-icon";
 import { SellBuyQuoteSplit, type Side } from "@/components/sell-buy-quote";
 import { SentimentBar } from "@/components/sentiment-bar";
@@ -26,10 +27,13 @@ export function OrderPanel() {
   const [openPrice, setOpenPrice] = useState("");
 
   const instrument = getInstrument(ACTIVE_SYMBOL);
+  const live = useQuote(ACTIVE_SYMBOL);
   if (!instrument) return null;
 
+  const bid = live?.bid ?? instrument.bid;
+  const ask = live?.ask ?? instrument.ask;
   const sentiment = SENTIMENT[ACTIVE_SYMBOL] ?? { buy: 50, sell: 50 };
-  const spread = +(instrument.ask - instrument.bid).toFixed(2);
+  const spread = +(ask - bid).toFixed(2);
 
   return (
     <aside className="flex h-full flex-col bg-surface">
@@ -63,8 +67,8 @@ export function OrderPanel() {
 
         {/* Sell/Buy quote split */}
         <SellBuyQuoteSplit
-          bid={instrument.bid}
-          ask={instrument.ask}
+          bid={bid}
+          ask={ask}
           spread={spread}
           selectedSide={side}
           onSelect={setSide}
@@ -96,7 +100,7 @@ export function OrderPanel() {
             label="Open price"
             value={openPrice}
             onChange={setOpenPrice}
-            placeholder={instrument.bid.toFixed(2)}
+            placeholder={bid.toFixed(2)}
             mono
             suffix={
               <button className="flex items-center gap-1 rounded bg-surface-3 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-text-muted hover:text-text">
@@ -131,9 +135,9 @@ export function OrderPanel() {
           }
           steppers={{
             onMinus: () =>
-              setTp(tp ? (Number(tp) - 0.5).toFixed(2) : instrument.ask.toFixed(2)),
+              setTp(tp ? (Number(tp) - 0.5).toFixed(2) : ask.toFixed(2)),
             onPlus: () =>
-              setTp(tp ? (Number(tp) + 0.5).toFixed(2) : instrument.ask.toFixed(2)),
+              setTp(tp ? (Number(tp) + 0.5).toFixed(2) : ask.toFixed(2)),
           }}
         />
         <FormField
@@ -150,9 +154,9 @@ export function OrderPanel() {
           }
           steppers={{
             onMinus: () =>
-              setSl(sl ? (Number(sl) - 0.5).toFixed(2) : instrument.bid.toFixed(2)),
+              setSl(sl ? (Number(sl) - 0.5).toFixed(2) : bid.toFixed(2)),
             onPlus: () =>
-              setSl(sl ? (Number(sl) + 0.5).toFixed(2) : instrument.bid.toFixed(2)),
+              setSl(sl ? (Number(sl) + 0.5).toFixed(2) : bid.toFixed(2)),
           }}
         />
       </div>

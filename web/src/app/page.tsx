@@ -13,12 +13,18 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import { FavoritesProvider } from "@/lib/favorites-context";
+import { QuotesProvider } from "@/lib/quotes-context";
 import { SettingsProvider } from "@/lib/settings-context";
 
 export default function Home() {
   return (
     <SettingsProvider>
-      <Terminal />
+      <FavoritesProvider>
+        <QuotesProvider>
+          <Terminal />
+        </QuotesProvider>
+      </FavoritesProvider>
     </SettingsProvider>
   );
 }
