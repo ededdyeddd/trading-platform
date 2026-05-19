@@ -5,7 +5,6 @@ import {
   Bell,
   ChevronDown,
   Clock,
-  Grid3x3,
   Plus,
   TrendingUp,
   User,
@@ -19,11 +18,15 @@ import {
 } from "@/lib/positions-context";
 import { AddInstrumentDialog } from "@/components/add-instrument-dialog";
 import { TickerIcon } from "@/components/ticker-icon";
+import { WidgetsMenu } from "@/components/widgets-menu";
+import { useSettings } from "@/lib/settings-context";
 
 export function HeaderBar() {
   const { activeSymbol, openTabs, setActiveSymbol, closeTab } =
     useActiveInstrument();
   const stats = useAccountStats();
+  const { settings } = useSettings();
+  const showTabs = settings.widgets.chart;
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const canCloseTabs = openTabs.length > 1;
 
@@ -32,25 +35,27 @@ export function HeaderBar() {
       <Logo />
 
       {/* instrument tabs */}
-      <div className="ml-2 flex h-full items-center">
-        {openTabs.map((symbol) => (
-          <InstrumentTab
-            key={symbol}
-            symbol={symbol}
-            active={symbol === activeSymbol}
-            canClose={canCloseTabs}
-            onClick={() => setActiveSymbol(symbol)}
-            onClose={() => closeTab(symbol)}
-          />
-        ))}
-        <button
-          aria-label="Add instrument"
-          onClick={() => setAddDialogOpen(true)}
-          className="ml-1 flex h-7 w-7 items-center justify-center rounded-md text-text-muted hover:bg-surface-2 hover:text-text"
-        >
-          <Plus size={14} />
-        </button>
-      </div>
+      {showTabs && (
+        <div className="ml-2 flex h-full items-center">
+          {openTabs.map((symbol) => (
+            <InstrumentTab
+              key={symbol}
+              symbol={symbol}
+              active={symbol === activeSymbol}
+              canClose={canCloseTabs}
+              onClick={() => setActiveSymbol(symbol)}
+              onClose={() => closeTab(symbol)}
+            />
+          ))}
+          <button
+            aria-label="Add instrument"
+            onClick={() => setAddDialogOpen(true)}
+            className="ml-1 flex h-7 w-7 items-center justify-center rounded-md text-text-muted hover:bg-surface-2 hover:text-text"
+          >
+            <Plus size={14} />
+          </button>
+        </div>
+      )}
 
       {addDialogOpen && (
         <AddInstrumentDialog onClose={() => setAddDialogOpen(false)} />
@@ -78,9 +83,7 @@ export function HeaderBar() {
         <IconButton aria-label="Alerts">
           <Clock size={16} />
         </IconButton>
-        <IconButton aria-label="Apps">
-          <Grid3x3 size={16} />
-        </IconButton>
+        <WidgetsMenu />
         <button
           aria-label="Account"
           className="flex h-8 w-8 items-center justify-center rounded-full bg-surface-2 text-text-muted hover:bg-surface-3 hover:text-text"

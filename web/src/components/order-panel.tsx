@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { ChevronDown, HelpCircle, X } from "lucide-react";
+import { ChevronDown, HelpCircle } from "lucide-react";
 import { SENTIMENT, formatUsd, getInstrument } from "@/lib/mock-data";
 import { useActiveInstrument } from "@/lib/active-instrument-context";
 import { useAccountStats, usePositions } from "@/lib/positions-context";
@@ -19,14 +19,12 @@ export function OrderPanel() {
   const [sl, setSl] = useState("");
   const [openPrice, setOpenPrice] = useState("");
 
-  const { activeSymbol, openTabs, closeTab } = useActiveInstrument();
+  const { activeSymbol } = useActiveInstrument();
   const { openMarketPosition, openPendingOrder } = usePositions();
   const accountStats = useAccountStats();
   const instrument = getInstrument(activeSymbol);
   const live = useQuote(activeSymbol);
   if (!instrument) return null;
-
-  const canCloseTab = openTabs.length > 1;
 
   const bid = live?.bid ?? instrument.bid;
   const ask = live?.ask ?? instrument.ask;
@@ -90,15 +88,6 @@ export function OrderPanel() {
             {instrument.name}
           </span>
           <div className="flex-1" />
-          {canCloseTab && (
-            <button
-              onClick={() => closeTab(activeSymbol)}
-              aria-label={`Close ${activeSymbol} tab`}
-              className="flex h-6 w-6 items-center justify-center rounded text-text-muted hover:bg-surface-2 hover:text-text"
-            >
-              <X size={14} />
-            </button>
-          )}
         </div>
 
         {/* Order mode dropdown */}

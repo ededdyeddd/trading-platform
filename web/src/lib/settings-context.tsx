@@ -29,10 +29,13 @@ export type ImpactLevel =
   | "Low impact"
   | "Lowest impact";
 
+export type WidgetKey = "instruments" | "chart" | "positions" | "order";
+
 export type SettingsState = {
   chart: Record<ChartFlag, boolean>;
   sounds: Record<SoundFlag, boolean>;
   impacts: Record<ImpactLevel, boolean>;
+  widgets: Record<WidgetKey, boolean>;
   orderMode: string;
   priceSource: string;
 };
@@ -42,6 +45,7 @@ type SettingsContextValue = {
   setChartFlag: (flag: ChartFlag, value: boolean) => void;
   setSoundFlag: (flag: SoundFlag, value: boolean) => void;
   setImpact: (level: ImpactLevel, value: boolean) => void;
+  setWidget: (key: WidgetKey, value: boolean) => void;
   setOrderMode: (mode: string) => void;
   setPriceSource: (src: string) => void;
 };
@@ -68,6 +72,12 @@ const DEFAULTS: SettingsState = {
     "Middle impact": false,
     "Low impact": false,
     "Lowest impact": false,
+  },
+  widgets: {
+    instruments: true,
+    chart: true,
+    positions: true,
+    order: true,
   },
   orderMode: "Regular form",
   priceSource: "Last price",
@@ -103,6 +113,13 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
     }));
   }, []);
 
+  const setWidget = useCallback((key: WidgetKey, value: boolean) => {
+    setSettings((prev) => ({
+      ...prev,
+      widgets: { ...prev.widgets, [key]: value },
+    }));
+  }, []);
+
   const setOrderMode = useCallback((mode: string) => {
     setSettings((prev) => ({ ...prev, orderMode: mode }));
   }, []);
@@ -117,10 +134,19 @@ export function SettingsProvider({ children }: { children: ReactNode }) {
       setChartFlag,
       setSoundFlag,
       setImpact,
+      setWidget,
       setOrderMode,
       setPriceSource,
     }),
-    [settings, setChartFlag, setSoundFlag, setImpact, setOrderMode, setPriceSource]
+    [
+      settings,
+      setChartFlag,
+      setSoundFlag,
+      setImpact,
+      setWidget,
+      setOrderMode,
+      setPriceSource,
+    ]
   );
 
   return (

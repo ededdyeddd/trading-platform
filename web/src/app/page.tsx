@@ -17,7 +17,7 @@ import { ActiveInstrumentProvider } from "@/lib/active-instrument-context";
 import { FavoritesProvider } from "@/lib/favorites-context";
 import { PositionsProvider } from "@/lib/positions-context";
 import { QuotesProvider } from "@/lib/quotes-context";
-import { SettingsProvider } from "@/lib/settings-context";
+import { SettingsProvider, useSettings } from "@/lib/settings-context";
 
 export default function Home() {
   return (
@@ -38,6 +38,16 @@ export default function Home() {
 function Terminal() {
   const [activeRailPanel, setActiveRailPanel] =
     useState<RailPanel>("instruments");
+  const { settings } = useSettings();
+  const { widgets } = settings;
+
+  const showMiddle = widgets.chart || widgets.positions;
+  const anyVisible = widgets.instruments || showMiddle || widgets.order;
+
+  // Re-mount the group when visibility changes so default sizes redistribute
+  // across the currently visible panels — react-resizable-panels keeps the
+  // last user-sized values otherwise.
+  const layoutKey = `${widgets.instruments}-${widgets.chart}-${widgets.positions}-${widgets.order}`;
 
   return (
     <div className="flex h-screen w-screen flex-col bg-bg">
@@ -54,41 +64,69 @@ function Terminal() {
         </aside>
 
         {/* Resizable panel tree */}
-        <ResizablePanelGroup orientation="horizontal" className="flex-1">
-          <ResizablePanel
-            id="context"
-            defaultSize="22%"
-            minSize="15%"
-            maxSize="40%"
+        {anyVisible ? (
+          <ResizablePanelGroup
+            key={layoutKey}
+            orientation="horizontal"
+            className="flex-1"
           >
-            <ContextualPanel active={activeRailPanel} />
-          </ResizablePanel>
-
-          <ResizableHandle withHandle />
-
-          <ResizablePanel id="middle" defaultSize="50%" minSize="30%">
-            <ResizablePanelGroup orientation="vertical">
-              <ResizablePanel id="chart" defaultSize="72%" minSize="30%">
-                <ChartPanel />
+            {widgets.instruments && (
+              <ResizablePanel
+                id="context"
+                defaultSize="22%"
+                minSize="15%"
+                maxSize="40%"
+              >
+                <ContextualPanel active={activeRailPanel} />
               </ResizablePanel>
+            )}
+
+            {widgets.instruments && (showMiddle || widgets.order) && (
               <ResizableHandle withHandle />
-              <ResizablePanel id="positions" defaultSize="28%" minSize="10%">
-                <PositionsPanel />
+            )}
+
+            {showMiddle && (
+              <ResizablePanel id="middle" defaultSize="50%" minSize="30%">
+                <ResizablePanelGroup orientation="vertical">
+                  {widgets.chart && (
+                    <ResizablePanel id="chart" defaultSize="72%" minSize="30%">
+                      <ChartPanel />
+                    </ResizablePanel>
+                  )}
+                  {widgets.chart && widgets.positions && (
+                    <ResizableHandle withHandle />
+                  )}
+                  {widgets.positions && (
+                    <ResizablePanel
+                      id="positions"
+                      defaultSize="28%"
+                      minSize="10%"
+                    >
+                      <PositionsPanel />
+                    </ResizablePanel>
+                  )}
+                </ResizablePanelGroup>
               </ResizablePanel>
-            </ResizablePanelGroup>
-          </ResizablePanel>
+            )}
 
-          <ResizableHandle withHandle />
+            {showMiddle && widgets.order && <ResizableHandle withHandle />}
 
-          <ResizablePanel
-            id="order"
-            defaultSize="28%"
-            minSize="20%"
-            maxSize="45%"
-          >
-            <OrderPanel />
-          </ResizablePanel>
-        </ResizablePanelGroup>
+            {widgets.order && (
+              <ResizablePanel
+                id="order"
+                defaultSize="28%"
+                minSize="20%"
+                maxSize="45%"
+              >
+                <OrderPanel />
+              </ResizablePanel>
+            )}
+          </ResizablePanelGroup>
+        ) : (
+          <div className="flex flex-1 items-center justify-center text-xs text-text-muted">
+            All widgets hidden — enable some via the Widgets menu.
+          </div>
+        )}
       </div>
 
       {/* Status bar — full width, fixed 36px */}
