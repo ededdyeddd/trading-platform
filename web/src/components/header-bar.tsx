@@ -11,8 +11,9 @@ import {
   User,
   X,
 } from "lucide-react";
-import { ACCOUNT, formatUsd, hasOpenPosition } from "@/lib/mock-data";
+import { ACCOUNT, formatUsd } from "@/lib/mock-data";
 import { useActiveInstrument } from "@/lib/active-instrument-context";
+import { useHasOpenPosition } from "@/lib/positions-context";
 import { AddInstrumentDialog } from "@/components/add-instrument-dialog";
 import { TickerIcon } from "@/components/ticker-icon";
 
@@ -33,7 +34,6 @@ export function HeaderBar() {
             key={symbol}
             symbol={symbol}
             active={symbol === activeSymbol}
-            hasPosition={hasOpenPosition(symbol)}
             canClose={canCloseTabs}
             onClick={() => setActiveSymbol(symbol)}
             onClose={() => closeTab(symbol)}
@@ -107,18 +107,17 @@ function Logo() {
 function InstrumentTab({
   symbol,
   active,
-  hasPosition,
   canClose,
   onClick,
   onClose,
 }: {
   symbol: string;
   active: boolean;
-  hasPosition: boolean;
   canClose: boolean;
   onClick: () => void;
   onClose: () => void;
 }) {
+  const hasPosition = useHasOpenPosition(symbol);
   return (
     <div
       className={`group relative flex h-[52px] items-center border-b-2 transition-colors ${

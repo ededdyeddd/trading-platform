@@ -9,11 +9,16 @@ import {
   X,
 } from "lucide-react";
 import {
-  PENDING_ORDERS,
-  POSITIONS,
-  type Position,
+  computePnl,
   formatUsd,
+  getInstrument,
+  shortPositionId,
+  type ClosedPosition,
+  type PendingOrder,
+  type Position,
 } from "@/lib/mock-data";
+import { usePositions } from "@/lib/positions-context";
+import { useQuote } from "@/lib/quotes-context";
 import { TickerIcon } from "@/components/ticker-icon";
 
 type Tab = "open" | "pending" | "closed";
@@ -26,11 +31,12 @@ const TAB_LABELS: Record<Tab, string> = {
 
 export function PositionsPanel() {
   const [tab, setTab] = useState<Tab>("open");
+  const { positions, pendingOrders, closedPositions } = usePositions();
 
   const counts: Record<Tab, number> = {
-    open: POSITIONS.length,
-    pending: PENDING_ORDERS.length,
-    closed: 0,
+    open: positions.length,
+    pending: pendingOrders.length,
+    closed: closedPositions.length,
   };
 
   return (
@@ -54,9 +60,24 @@ export function PositionsPanel() {
 
       {/* Table */}
       <div className="flex-1 overflow-y-auto">
-        {tab === "open" && <OpenPositionsTable rows={POSITIONS} />}
-        {tab === "pending" && <EmptyState label="No pending orders" />}
-        {tab === "closed" && <EmptyState label="No closed orders today" />}
+        {tab === "open" &&
+          (positions.length === 0 ? (
+            <EmptyState label="No open positions" />
+          ) : (
+            <OpenPositionsTable rows={positions} />
+          ))}
+        {tab === "pending" &&
+          (pendingOrders.length === 0 ? (
+            <EmptyState label="No pending orders" />
+          ) : (
+            <PendingOrdersTable rows={pendingOrders} />
+          ))}
+        {tab === "closed" &&
+          (closedPositions.length === 0 ? (
+            <EmptyState label="No closed orders today" />
+          ) : (
+            <ClosedPositionsTable rows={closedPositions} />
+          ))}
       </div>
     </section>
   );
@@ -66,18 +87,14 @@ export function PositionsPanel() {
  * Open positions table
  * ─────────────────────────────────────────────────────────────────────*/
 
-const COLS =
+const OPEN_COLS =
   "grid-cols-[100px_70px_70px_100px_100px_90px_90px_110px_90px_60px]";
 
 function OpenPositionsTable({ rows }: { rows: Position[] }) {
-  if (rows.length === 0) {
-    return <EmptyState label="No open positions" />;
-  }
-
   return (
     <div className="min-w-full">
       <div
-        className={`grid ${COLS} items-center gap-3 border-b border-border px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted`}
+        className={`grid ${OPEN_COLS} items-center gap-3 border-b border-border px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted`}
       >
         <span>Symbol</span>
         <span>Type</span>
@@ -91,17 +108,28 @@ function OpenPositionsTable({ rows }: { rows: Position[] }) {
         <span></span>
       </div>
       {rows.map((p) => (
-        <PositionRow key={p.id} row={p} />
+        <OpenPositionRow key={p.id} row={p} />
       ))}
     </div>
   );
 }
 
-function PositionRow({ row }: { row: Position }) {
-  const positive = row.pnl >= 0;
+function OpenPositionRow({ row }: { row: Position }) {
+  const { closePosition } = usePositions();
+  const live = useQuote(row.symbol);
+  const instrument = getInstrument(row.symbol);
+  // Live mark price: closing a buy hits the bid, closing a sell hits the ask.
+  const currentPrice =
+    row.side === "buy"
+      ? live?.bid ?? instrument?.bid ?? row.openPrice
+      : live?.ask ?? instrument?.ask ?? row.openPrice;
+  const precision = instrument?.precision ?? 2;
+  const pnl = computePnl(row, currentPrice);
+  const positive = pnl >= 0;
+
   return (
     <div
-      className={`grid ${COLS} items-center gap-3 border-b border-border/50 px-3 py-2.5 text-xs transition-colors hover:bg-surface-2`}
+      className={`grid ${OPEN_COLS} items-center gap-3 border-b border-border/50 px-3 py-2.5 text-xs transition-colors hover:bg-surface-2`}
     >
       <div className="flex items-center gap-2">
         <TickerIcon symbol={row.symbol} size={14} />
@@ -119,14 +147,14 @@ function PositionRow({ row }: { row: Position }) {
       <span className="text-right font-mono tabular-nums text-text">
         {row.volume}
       </span>
-      <Editable value={row.openPrice.toFixed(2)} />
+      <Editable value={row.openPrice.toFixed(precision)} />
       <span className="text-right font-mono tabular-nums text-text">
-        {row.currentPrice.toFixed(2)}
+        {currentPrice.toFixed(precision)}
       </span>
-      <Editable value={row.takeProfit?.toFixed(2) ?? "—"} />
-      <Editable value={row.stopLoss?.toFixed(2) ?? "—"} />
+      <Editable value={row.takeProfit?.toFixed(precision) ?? "—"} />
+      <Editable value={row.stopLoss?.toFixed(precision) ?? "—"} />
       <span className="text-right font-mono tabular-nums text-text-muted">
-        {row.positionId}
+        {shortPositionId(row.id)}
       </span>
       <span
         className={`text-right font-mono font-medium tabular-nums ${
@@ -134,7 +162,7 @@ function PositionRow({ row }: { row: Position }) {
         }`}
       >
         {positive ? "+" : "−"}
-        {formatUsd(Math.abs(row.pnl)).replace("$", "$")}
+        {formatUsd(Math.abs(pnl)).replace("$", "$")}
       </span>
       <div className="flex items-center justify-end gap-1.5 text-text-muted">
         <button
@@ -144,6 +172,7 @@ function PositionRow({ row }: { row: Position }) {
           <Edit3 size={12} />
         </button>
         <button
+          onClick={() => closePosition(row.id, currentPrice)}
           aria-label="Close position"
           className="rounded p-0.5 hover:bg-surface-3 hover:text-sell"
         >
@@ -154,6 +183,166 @@ function PositionRow({ row }: { row: Position }) {
   );
 }
 
+/* ──────────────────────────────────────────────────────────────────────
+ * Pending orders table
+ * ─────────────────────────────────────────────────────────────────────*/
+
+const PENDING_COLS =
+  "grid-cols-[100px_70px_70px_100px_100px_90px_90px_110px_60px]";
+
+function PendingOrdersTable({ rows }: { rows: PendingOrder[] }) {
+  return (
+    <div className="min-w-full">
+      <div
+        className={`grid ${PENDING_COLS} items-center gap-3 border-b border-border px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted`}
+      >
+        <span>Symbol</span>
+        <span>Side</span>
+        <span className="text-right">Volume</span>
+        <span className="text-right">Type</span>
+        <span className="text-right">Trigger</span>
+        <span className="text-right">T/P</span>
+        <span className="text-right">S/L</span>
+        <span className="text-right">Order</span>
+        <span></span>
+      </div>
+      {rows.map((o) => (
+        <PendingOrderRow key={o.id} row={o} />
+      ))}
+    </div>
+  );
+}
+
+function PendingOrderRow({ row }: { row: PendingOrder }) {
+  const { cancelPendingOrder } = usePositions();
+  const precision = getInstrument(row.symbol)?.precision ?? 2;
+  return (
+    <div
+      className={`grid ${PENDING_COLS} items-center gap-3 border-b border-border/50 px-3 py-2.5 text-xs transition-colors hover:bg-surface-2`}
+    >
+      <div className="flex items-center gap-2">
+        <TickerIcon symbol={row.symbol} size={14} />
+        <span className="font-semibold text-text">{row.symbol}</span>
+      </div>
+      <span
+        className={
+          row.side === "buy"
+            ? "font-medium text-buy"
+            : "font-medium text-sell"
+        }
+      >
+        {row.side === "buy" ? "Buy" : "Sell"}
+      </span>
+      <span className="text-right font-mono tabular-nums text-text">
+        {row.volume}
+      </span>
+      <span className="text-right text-text-muted">
+        {row.type === "limit" ? "Limit" : "Stop"}
+      </span>
+      <span className="text-right font-mono tabular-nums text-text">
+        {row.triggerPrice.toFixed(precision)}
+      </span>
+      <Editable value={row.takeProfit?.toFixed(precision) ?? "—"} />
+      <Editable value={row.stopLoss?.toFixed(precision) ?? "—"} />
+      <span className="text-right font-mono tabular-nums text-text-muted">
+        {shortPositionId(row.id)}
+      </span>
+      <div className="flex items-center justify-end gap-1.5 text-text-muted">
+        <button
+          onClick={() => cancelPendingOrder(row.id)}
+          aria-label="Cancel order"
+          className="rounded p-0.5 hover:bg-surface-3 hover:text-sell"
+        >
+          <X size={12} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Closed positions table
+ * ─────────────────────────────────────────────────────────────────────*/
+
+const CLOSED_COLS =
+  "grid-cols-[100px_70px_70px_100px_100px_110px_110px_90px]";
+
+function ClosedPositionsTable({ rows }: { rows: ClosedPosition[] }) {
+  // Newest first.
+  const ordered = [...rows].sort((a, b) => b.closedAt - a.closedAt);
+  return (
+    <div className="min-w-full">
+      <div
+        className={`grid ${CLOSED_COLS} items-center gap-3 border-b border-border px-3 py-2 text-[10px] uppercase tracking-wider text-text-muted`}
+      >
+        <span>Symbol</span>
+        <span>Side</span>
+        <span className="text-right">Volume</span>
+        <span className="text-right">Open</span>
+        <span className="text-right">Close</span>
+        <span className="text-right">Position</span>
+        <span className="text-right">Closed at</span>
+        <span className="text-right">P/L USD</span>
+      </div>
+      {ordered.map((p) => (
+        <ClosedPositionRow key={p.id} row={p} />
+      ))}
+    </div>
+  );
+}
+
+function ClosedPositionRow({ row }: { row: ClosedPosition }) {
+  const precision = getInstrument(row.symbol)?.precision ?? 2;
+  const positive = row.realizedPnl >= 0;
+  const closedAt = new Date(row.closedAt).toISOString().slice(11, 19);
+  return (
+    <div
+      className={`grid ${CLOSED_COLS} items-center gap-3 border-b border-border/50 px-3 py-2.5 text-xs transition-colors hover:bg-surface-2`}
+    >
+      <div className="flex items-center gap-2">
+        <TickerIcon symbol={row.symbol} size={14} />
+        <span className="font-semibold text-text">{row.symbol}</span>
+      </div>
+      <span
+        className={
+          row.side === "buy"
+            ? "font-medium text-buy"
+            : "font-medium text-sell"
+        }
+      >
+        {row.side === "buy" ? "Buy" : "Sell"}
+      </span>
+      <span className="text-right font-mono tabular-nums text-text">
+        {row.volume}
+      </span>
+      <span className="text-right font-mono tabular-nums text-text">
+        {row.openPrice.toFixed(precision)}
+      </span>
+      <span className="text-right font-mono tabular-nums text-text">
+        {row.closePrice.toFixed(precision)}
+      </span>
+      <span className="text-right font-mono tabular-nums text-text-muted">
+        {shortPositionId(row.id)}
+      </span>
+      <span className="text-right font-mono tabular-nums text-text-muted">
+        {closedAt}
+      </span>
+      <span
+        className={`text-right font-mono font-medium tabular-nums ${
+          positive ? "text-buy" : "text-sell"
+        }`}
+      >
+        {positive ? "+" : "−"}
+        {formatUsd(Math.abs(row.realizedPnl)).replace("$", "$")}
+      </span>
+    </div>
+  );
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Helpers
+ * ─────────────────────────────────────────────────────────────────────*/
+
 function Editable({ value }: { value: string }) {
   return (
     <span className="cursor-pointer text-right font-mono tabular-nums text-text underline decoration-text-subtle/40 decoration-dashed underline-offset-2 hover:decoration-text-muted">
@@ -161,10 +350,6 @@ function Editable({ value }: { value: string }) {
     </span>
   );
 }
-
-/* ──────────────────────────────────────────────────────────────────────
- * Helpers
- * ─────────────────────────────────────────────────────────────────────*/
 
 function TabButton({
   label,

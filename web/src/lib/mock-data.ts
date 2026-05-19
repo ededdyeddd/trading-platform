@@ -42,26 +42,52 @@ export type Position = {
   id: string;
   symbol: string;
   side: "buy" | "sell";
-  type: "market" | "limit" | "stop";
   volume: number;
   openPrice: number;
-  currentPrice: number;
   takeProfit: number | null;
   stopLoss: number | null;
-  pnl: number;
-  positionId: string;
+  openedAt: number;
 };
 
 export type PendingOrder = {
   id: string;
   symbol: string;
   side: "buy" | "sell";
-  type: "limit" | "stop" | "stop-limit";
+  /** Pending-order shape: hit `triggerPrice` from the unfavourable side
+   *  (limit) or the favourable side (stop). */
+  type: "limit" | "stop";
   volume: number;
-  limitPrice: number | null;
-  stopPrice: number | null;
-  createdAt: string;
+  triggerPrice: number;
+  takeProfit: number | null;
+  stopLoss: number | null;
+  createdAt: number;
 };
+
+export type ClosedPosition = Position & {
+  closePrice: number;
+  closedAt: number;
+  realizedPnl: number;
+};
+
+/** Live PnL = (signed price diff) × volume. Buy profits when price
+ *  rises, sell profits when it falls. */
+export function computePnl(
+  position: Pick<Position, "side" | "openPrice" | "volume">,
+  currentPrice: number
+): number {
+  const diff =
+    position.side === "buy"
+      ? currentPrice - position.openPrice
+      : position.openPrice - currentPrice;
+  return diff * position.volume;
+}
+
+/** Short broker-style id for display in the positions table. */
+export function shortPositionId(id: string): string {
+  // Drop the type prefix ("P-"/"O-") if present, take last 7 chars.
+  const stripped = id.replace(/^[PO]-/, "");
+  return stripped.slice(-7);
+}
 
 export type Account = {
   balance: number;
@@ -372,10 +398,6 @@ export const SENTIMENT: Record<string, { buy: number; sell: number }> = {
 
 export function getInstrument(symbol: string): Instrument | undefined {
   return WATCHLIST.find((i) => i.symbol === symbol);
-}
-
-export function hasOpenPosition(symbol: string): boolean {
-  return POSITIONS.some((p) => p.symbol === symbol);
 }
 
 export function formatUsd(n: number, opts: { signed?: boolean } = {}): string {

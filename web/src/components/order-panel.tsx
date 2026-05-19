@@ -9,6 +9,7 @@ import {
   getInstrument,
 } from "@/lib/mock-data";
 import { useActiveInstrument } from "@/lib/active-instrument-context";
+import { usePositions } from "@/lib/positions-context";
 import { useQuote } from "@/lib/quotes-context";
 import { TickerIcon } from "@/components/ticker-icon";
 import { SellBuyQuoteSplit, type Side } from "@/components/sell-buy-quote";
@@ -27,6 +28,7 @@ export function OrderPanel() {
   const [openPrice, setOpenPrice] = useState("");
 
   const { activeSymbol, openTabs, closeTab } = useActiveInstrument();
+  const { openMarketPosition, openPendingOrder } = usePositions();
   const instrument = getInstrument(activeSymbol);
   const live = useQuote(activeSymbol);
   if (!instrument) return null;
@@ -37,6 +39,49 @@ export function OrderPanel() {
   const ask = live?.ask ?? instrument.ask;
   const sentiment = SENTIMENT[activeSymbol] ?? { buy: 50, sell: 50 };
   const spread = +(ask - bid).toFixed(2);
+
+  // Parse the form's optional TP/SL/openPrice. Empty string → null.
+  const tpNum = tp.trim() ? Number(tp) : null;
+  const slNum = sl.trim() ? Number(sl) : null;
+  const openPriceNum = openPrice.trim() ? Number(openPrice) : null;
+
+  const isMarketValid = volume > 0;
+  const isPendingValid =
+    volume > 0 && openPriceNum !== null && openPriceNum > 0;
+  const canConfirm = tab === "market" ? isMarketValid : isPendingValid;
+
+  function resetForm() {
+    setVolume(1);
+    setTp("");
+    setSl("");
+    setOpenPrice("");
+  }
+
+  function handleConfirm() {
+    if (!canConfirm) return;
+    if (tab === "market") {
+      // Market fill = buy at ask, sell at bid.
+      openMarketPosition({
+        symbol: activeSymbol,
+        side,
+        volume,
+        openPrice: side === "buy" ? ask : bid,
+        takeProfit: tpNum,
+        stopLoss: slNum,
+      });
+    } else {
+      openPendingOrder({
+        symbol: activeSymbol,
+        side,
+        type: pendingType,
+        volume,
+        triggerPrice: openPriceNum!,
+        takeProfit: tpNum,
+        stopLoss: slNum,
+      });
+    }
+    resetForm();
+  }
 
   return (
     <aside className="flex h-full flex-col bg-surface">
@@ -174,8 +219,14 @@ export function OrderPanel() {
           tab={tab}
           pendingType={pendingType}
           volume={volume}
+          disabled={!canConfirm}
+          onClick={handleConfirm}
         />
-        <button className="flex h-9 items-center justify-center rounded-md border border-border text-xs text-text hover:bg-surface-2">
+        <button
+          type="button"
+          onClick={resetForm}
+          className="flex h-9 items-center justify-center rounded-md border border-border text-xs text-text hover:bg-surface-2"
+        >
           Cancel
         </button>
         <div className="flex flex-col gap-1.5 border-t border-border pt-2 text-xs">
@@ -203,11 +254,15 @@ function ConfirmButton({
   tab,
   pendingType,
   volume,
+  disabled,
+  onClick,
 }: {
   side: Side;
   tab: OrderTab;
   pendingType: PendingType;
   volume: number;
+  disabled: boolean;
+  onClick: () => void;
 }) {
   const { activeSymbol } = useActiveInstrument();
   const verb = side === "buy" ? "Buy" : "Sell";
@@ -224,7 +279,13 @@ function ConfirmButton({
 
   return (
     <button
-      className={`flex h-10 items-center justify-center rounded-md text-sm font-medium transition-colors ${styles}`}
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-disabled={disabled}
+      className={`flex h-10 items-center justify-center rounded-md text-sm font-medium transition-colors ${styles} ${
+        disabled ? "cursor-not-allowed opacity-50 hover:opacity-50" : ""
+      }`}
     >
       {label}
     </button>

@@ -15,6 +15,7 @@ import {
 } from "@/components/ui/resizable";
 import { ActiveInstrumentProvider } from "@/lib/active-instrument-context";
 import { FavoritesProvider } from "@/lib/favorites-context";
+import { PositionsProvider } from "@/lib/positions-context";
 import { QuotesProvider } from "@/lib/quotes-context";
 import { SettingsProvider } from "@/lib/settings-context";
 
@@ -23,9 +24,11 @@ export default function Home() {
     <SettingsProvider>
       <FavoritesProvider>
         <QuotesProvider>
-          <ActiveInstrumentProvider>
-            <Terminal />
-          </ActiveInstrumentProvider>
+          <PositionsProvider>
+            <ActiveInstrumentProvider>
+              <Terminal />
+            </ActiveInstrumentProvider>
+          </PositionsProvider>
         </QuotesProvider>
       </FavoritesProvider>
     </SettingsProvider>

@@ -31,18 +31,24 @@ import {
 import {
   DEFAULT_CHART_TYPE,
   DEFAULT_TIMEFRAME,
-  POSITIONS,
-  PENDING_ORDERS,
   TIMEFRAMES,
+  computePnl,
   formatUsd,
   getInstrument,
   type Candle,
   type ChartType,
+  type PendingOrder,
+  type Position,
   type Timeframe,
 } from "@/lib/mock-data";
 import { useActiveInstrument } from "@/lib/active-instrument-context";
-import { useChartCandles } from "@/lib/quotes-context";
+import { usePositions } from "@/lib/positions-context";
+import { useChartCandles, useQuote } from "@/lib/quotes-context";
 import { useSettings } from "@/lib/settings-context";
+import {
+  ChartContextMenu,
+  type ChartContextMenuPosition,
+} from "@/components/chart-context-menu";
 
 export function ChartPanel() {
   const { activeSymbol } = useActiveInstrument();
@@ -50,18 +56,36 @@ export function ChartPanel() {
   const [timeframe, setTimeframe] = useState<Timeframe>(DEFAULT_TIMEFRAME);
   const instrument = getInstrument(activeSymbol);
   const candles = useChartCandles(activeSymbol, timeframe);
+  const { positions, pendingOrders } = usePositions();
+  const live = useQuote(activeSymbol);
   const lastCandle = candles[candles.length - 1];
   const firstCandle = candles[0];
   const change =
     lastCandle && firstCandle ? lastCandle.close - firstCandle.open : 0;
   const changePct =
     lastCandle && firstCandle ? (change / firstCandle.open) * 100 : 0;
-  const position = POSITIONS.find((p) => p.symbol === activeSymbol);
+
+  // Aggregate live PnL across all open positions on the active symbol.
+  // `null` keeps the tag hidden when there's nothing to show.
+  const symbolPositions = positions.filter((p) => p.symbol === activeSymbol);
+  const symbolPendingOrders = pendingOrders.filter(
+    (o) => o.symbol === activeSymbol
+  );
+  const aggregatePnl =
+    symbolPositions.length === 0
+      ? null
+      : symbolPositions.reduce((sum, p) => {
+          const mark =
+            p.side === "buy"
+              ? live?.bid ?? instrument?.bid ?? p.openPrice
+              : live?.ask ?? instrument?.ask ?? p.openPrice;
+          return sum + computePnl(p, mark);
+        }, 0);
 
   return (
     <section className="flex h-full flex-col bg-surface">
       <ChartToolbar
-        pnl={position?.pnl ?? null}
+        pnl={aggregatePnl}
         chartType={chartType}
         onChartTypeChange={setChartType}
       />
@@ -79,9 +103,10 @@ export function ChartPanel() {
             or the series renderer, so remount is the cleanest path. */}
         <ChartCanvas
           key={`${activeSymbol}-${timeframe}-${chartType}`}
-          symbol={activeSymbol}
           chartType={chartType}
           candles={candles}
+          positions={symbolPositions}
+          pendingOrders={symbolPendingOrders}
         />
       </div>
       <TimeframeStrip value={timeframe} onChange={setTimeframe} />
@@ -319,17 +344,20 @@ function buildValuePayload(c: Candle) {
 }
 
 function ChartCanvas({
-  symbol,
   chartType,
   candles,
+  positions,
+  pendingOrders,
 }: {
-  symbol: string;
   chartType: ChartType;
   candles: Candle[];
+  positions: Position[];
+  pendingOrders: PendingOrder[];
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const priceSeriesRef = useRef<AnyPriceSeries | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const [contextMenu, setContextMenu] = useState<ChartContextMenuPosition | null>(null);
 
   const { settings } = useSettings();
   const showOpenPositions = settings.chart.openPositions;
@@ -467,7 +495,36 @@ function ChartCanvas({
     });
     ro.observe(container);
 
+    // Right-click → open trade-actions menu at the cursor. Use the
+    // capture phase so lightweight-charts' internal canvas handlers
+    // can't swallow the event before we see it. Price under the click
+    // comes from the candle series; if the click lands outside the
+    // chart area (e.g., on the time scale) we fall back to the latest
+    // candle's close so the menu still opens with something usable.
+    const onContextMenu = (e: MouseEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      const rect = container.getBoundingClientRect();
+      const yInChart = e.clientY - rect.top;
+      const series = priceSeriesRef.current;
+      let price: number | null = null;
+      if (series) {
+        const raw = series.coordinateToPrice(yInChart);
+        if (raw != null && Number.isFinite(raw)) price = raw;
+      }
+      if (price == null) {
+        // Mount-time snapshot — fine for a fallback since the user
+        // clicked outside the chart-area anyway.
+        const last = candles[candles.length - 1];
+        if (last) price = last.close;
+      }
+      if (price == null) return;
+      setContextMenu({ x: e.clientX, y: e.clientY, price });
+    };
+    container.addEventListener("contextmenu", onContextMenu, true);
+
     return () => {
+      container.removeEventListener("contextmenu", onContextMenu, true);
       ro.disconnect();
       priceSeriesRef.current = null;
       volumeSeriesRef.current = null;
@@ -501,13 +558,11 @@ function ChartCanvas({
     });
   }, [lastCandle, chartType]);
 
-  // Effect: ENTRY line(s) — gated by `Open positions` toggle
+  // Effect: ENTRY line(s) — gated by `Open positions` toggle; reruns
+  // when positions change so opening/closing reflects on the chart.
   useEffect(() => {
     const series = priceSeriesRef.current;
-    if (!series || !showOpenPositions) return;
-
-    const positions = POSITIONS.filter((p) => p.symbol === symbol);
-    if (positions.length === 0) return;
+    if (!series || !showOpenPositions || positions.length === 0) return;
 
     const info = readToken("--info", "#5BC0EB");
 
@@ -525,7 +580,7 @@ function ChartCanvas({
     return () => {
       lines.forEach((line) => series.removePriceLine(line));
     };
-  }, [showOpenPositions, symbol]);
+  }, [showOpenPositions, positions]);
 
   // Effect: TP / SL / Stop / Limit markers — one toggle covers all four
   // marker types (TP and SL of open positions, plus pending-order
@@ -540,7 +595,7 @@ function ChartCanvas({
 
     const lines: IPriceLine[] = [];
 
-    for (const position of POSITIONS.filter((p) => p.symbol === symbol)) {
+    for (const position of positions) {
       if (position.takeProfit !== null) {
         lines.push(
           series.createPriceLine({
@@ -567,28 +622,35 @@ function ChartCanvas({
       }
     }
 
-    for (const order of PENDING_ORDERS.filter((o) => o.symbol === symbol)) {
-      const triggerPrice = order.limitPrice ?? order.stopPrice;
-      if (triggerPrice !== null && triggerPrice !== undefined) {
-        lines.push(
-          series.createPriceLine({
-            price: triggerPrice,
-            color: text,
-            lineWidth: 1,
-            lineStyle: LineStyle.Dashed,
-            axisLabelVisible: true,
-            title: order.type === "limit" ? "Limit" : "Stop",
-          })
-        );
-      }
+    for (const order of pendingOrders) {
+      lines.push(
+        series.createPriceLine({
+          price: order.triggerPrice,
+          color: text,
+          lineWidth: 1,
+          lineStyle: LineStyle.Dashed,
+          axisLabelVisible: true,
+          title: order.type === "limit" ? "Limit" : "Stop",
+        })
+      );
     }
 
     return () => {
       lines.forEach((line) => series.removePriceLine(line));
     };
-  }, [showTpSlStopLimit, symbol]);
+  }, [showTpSlStopLimit, positions, pendingOrders]);
 
-  return <div ref={containerRef} className="absolute inset-0" />;
+  return (
+    <>
+      <div ref={containerRef} className="absolute inset-0" />
+      {contextMenu && (
+        <ChartContextMenu
+          position={contextMenu}
+          onClose={() => setContextMenu(null)}
+        />
+      )}
+    </>
+  );
 }
 
 // Silence unused-import noise from intentionally-kept type re-exports.

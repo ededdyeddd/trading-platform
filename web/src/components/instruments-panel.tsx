@@ -11,12 +11,18 @@ import {
 } from "@/lib/mock-data";
 import { useActiveInstrument } from "@/lib/active-instrument-context";
 import { useFavorites } from "@/lib/favorites-context";
+import { useHasOpenPosition } from "@/lib/positions-context";
 import { useQuote } from "@/lib/quotes-context";
+import { OpenPositionDialog } from "@/components/open-position-dialog";
 import { TickerIcon } from "@/components/ticker-icon";
 
 export function InstrumentsPanel() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("favorites");
+  const [tradeDialog, setTradeDialog] = useState<{
+    symbol: string;
+    anchor: { x: number; y: number };
+  } | null>(null);
   const { favorites } = useFavorites();
   const { activeSymbol } = useActiveInstrument();
 
@@ -77,9 +83,26 @@ export function InstrumentsPanel() {
               key={instrument.symbol}
               instrument={instrument}
               active={instrument.symbol === activeSymbol}
+              onDoubleClick={(rect) =>
+                // Anchor the dialog just to the right of the row, top-
+                // aligned. OpenPositionDialog clamps to the viewport so
+                // narrow / right-edge cases stay visible.
+                setTradeDialog({
+                  symbol: instrument.symbol,
+                  anchor: { x: rect.right + 8, y: rect.top },
+                })
+              }
             />
           ))}
         </div>
+      )}
+
+      {tradeDialog && (
+        <OpenPositionDialog
+          symbol={tradeDialog.symbol}
+          anchor={tradeDialog.anchor}
+          onClose={() => setTradeDialog(null)}
+        />
       )}
     </div>
   );
@@ -165,13 +188,18 @@ function CategorySelect({
 function InstrumentRow({
   instrument,
   active,
+  onDoubleClick,
 }: {
   instrument: Instrument;
   active: boolean;
+  /** Receives the row's viewport rect so the trade dialog can be
+   *  anchored next to it. */
+  onDoubleClick: (rect: DOMRect) => void;
 }) {
   const { symbol, precision } = instrument;
   const live = useQuote(symbol);
   const { isFavorite, toggle } = useFavorites();
+  const hasPosition = useHasOpenPosition(symbol);
   const bid = live?.bid ?? instrument.bid;
   const ask = live?.ask ?? instrument.ask;
   const signal = live?.signal ?? instrument.signal;
@@ -186,6 +214,10 @@ function InstrumentRow({
   return (
     <button
       aria-current={active ? "true" : undefined}
+      onDoubleClick={(e) =>
+        onDoubleClick(e.currentTarget.getBoundingClientRect())
+      }
+      title={`Double-click to trade ${symbol}`}
       className={`relative flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
         active ? "bg-surface-2" : "hover:bg-surface-2"
       }`}
@@ -222,6 +254,15 @@ function InstrumentRow({
       </span>
       <TickerIcon symbol={symbol} size={16} />
       <span className="truncate font-semibold text-text">{symbol}</span>
+      {hasPosition && (
+        <span
+          aria-label="Has open position"
+          title="Has open position"
+          className="font-mono text-[10px] leading-none tracking-tighter text-sell"
+        >
+          ‖‖‖
+        </span>
+      )}
       <div className="flex-1" />
       <span className="flex w-12 items-center justify-center">
         {signal === "up" && <ArrowUp size={11} className="text-buy" />}
