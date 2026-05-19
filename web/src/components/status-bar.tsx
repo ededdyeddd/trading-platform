@@ -1,28 +1,30 @@
 "use client";
 
 import { ChevronDown } from "lucide-react";
-import { ACCOUNT, formatUsd } from "@/lib/mock-data";
+import { formatUsd } from "@/lib/mock-data";
+import { useAccountStats } from "@/lib/positions-context";
 
 export function StatusBar() {
-  const dayPnlPositive = ACCOUNT.dayPnL >= 0;
-  const totalPnlPositive = ACCOUNT.totalPnL >= 0;
+  const stats = useAccountStats();
+  const dayPnlPositive = stats.dayPnL >= 0;
+  const totalPnlPositive = stats.totalPnL >= 0;
 
   return (
     <footer className="flex h-9 w-full items-center gap-6 bg-surface px-4 text-[11px]">
-      <Stat label="Balance" value={formatUsd(ACCOUNT.balance)} />
-      <Stat label="Buying power" value={formatUsd(ACCOUNT.buyingPower)} />
-      <Stat label="Cash" value={formatUsd(ACCOUNT.cash)} />
+      <Stat label="Balance" value={formatUsd(stats.balance)} />
+      <Stat label="Buying power" value={formatUsd(stats.buyingPower)} />
+      <Stat label="Cash" value={formatUsd(stats.cash)} />
       <Stat
         label="Day P/L"
-        value={`${dayPnlPositive ? "+" : "−"}${formatUsd(Math.abs(ACCOUNT.dayPnL))}`}
+        value={`${dayPnlPositive ? "+" : "−"}${formatUsd(Math.abs(stats.dayPnL))}`}
         tone={dayPnlPositive ? "buy" : "sell"}
       />
       <Stat
         label="Total P/L"
-        value={`${totalPnlPositive ? "+" : "−"}${formatUsd(Math.abs(ACCOUNT.totalPnL))}`}
+        value={`${totalPnlPositive ? "+" : "−"}${formatUsd(Math.abs(stats.totalPnL))}`}
         tone={totalPnlPositive ? "buy" : "sell"}
       />
-      <Stat label="Margin used" value={formatUsd(ACCOUNT.marginUsed)} />
+      <Stat label="Margin used" value={formatUsd(stats.marginUsed)} />
 
       <div className="flex-1" />
 

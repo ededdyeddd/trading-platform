@@ -2,13 +2,16 @@
 
 import { createContext, useCallback, useContext, useMemo, useState } from "react";
 import {
+  ACCOUNT,
   PENDING_ORDERS,
   POSITIONS,
   computePnl,
+  getInstrument,
   type ClosedPosition,
   type PendingOrder,
   type Position,
 } from "@/lib/mock-data";
+import { useQuotes } from "@/lib/quotes-context";
 
 /**
  * PositionsProvider — single source of truth for the user's trading
@@ -60,6 +63,11 @@ export type OpenPendingArgs = {
   stopLoss: number | null;
 };
 
+export type PositionPatch = {
+  takeProfit?: number | null;
+  stopLoss?: number | null;
+};
+
 type Ctx = {
   positions: Position[];
   pendingOrders: PendingOrder[];
@@ -68,6 +76,7 @@ type Ctx = {
   openPendingOrder: (args: OpenPendingArgs) => PendingOrder;
   closePosition: (id: string, closePrice: number) => void;
   cancelPendingOrder: (id: string) => void;
+  updatePosition: (id: string, patch: PositionPatch) => void;
 };
 
 /** Combined state — `closePosition` updates both `positions` and
@@ -155,6 +164,16 @@ export function PositionsProvider({
     }));
   }, []);
 
+  const updatePosition = useCallback((id: string, patch: PositionPatch) => {
+    setState((prev) => {
+      const idx = prev.positions.findIndex((p) => p.id === id);
+      if (idx === -1) return prev;
+      const next = prev.positions.slice();
+      next[idx] = { ...prev.positions[idx], ...patch };
+      return { ...prev, positions: next };
+    });
+  }, []);
+
   const value = useMemo<Ctx>(
     () => ({
       positions: state.positions,
@@ -164,8 +183,16 @@ export function PositionsProvider({
       openPendingOrder,
       closePosition,
       cancelPendingOrder,
+      updatePosition,
     }),
-    [state, openMarketPosition, openPendingOrder, closePosition, cancelPendingOrder]
+    [
+      state,
+      openMarketPosition,
+      openPendingOrder,
+      closePosition,
+      cancelPendingOrder,
+      updatePosition,
+    ]
   );
 
   return (
@@ -198,4 +225,71 @@ export function useHasActivity(symbol: string): boolean {
     positions.some((p) => p.symbol === symbol) ||
     pendingOrders.some((o) => o.symbol === symbol)
   );
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Live account stats — derived from positions + closed history + live
+ * quotes. Replaces the static `ACCOUNT` const for any consumer that
+ * needs values that should react to trading activity.
+ *
+ * Prototype model (no margin amplification, no overnight concept):
+ *   initial         = ACCOUNT.balance ($10k starting deposit)
+ *   realizedPnL     = Σ closedPositions[i].realizedPnl
+ *   unrealizedPnL   = Σ computePnl(p, markPrice) over open positions
+ *   marginUsed      = Σ p.volume × p.openPrice over open positions
+ *   equity (balance)= initial + realizedPnL + unrealizedPnL  (ticks live)
+ *   cash / buying   = initial + realizedPnL − marginUsed    (drops on open, rises on close)
+ *   dayPnL / total  = realizedPnL + unrealizedPnL           (same for a single-session prototype)
+ *
+ * Mark price uses the live `useQuote(symbol)`: bid for buy positions
+ * (where you'd sell to close), ask for sell positions (where you'd
+ * buy to close). Falls back to the seed value when no live quote yet.
+ * ─────────────────────────────────────────────────────────────────────*/
+
+export type AccountStats = {
+  balance: number;
+  cash: number;
+  buyingPower: number;
+  marginUsed: number;
+  dayPnL: number;
+  totalPnL: number;
+  equity: number;
+  realizedPnL: number;
+  unrealizedPnL: number;
+};
+
+export function useAccountStats(): AccountStats {
+  const { positions, closedPositions } = usePositions();
+  const quotes = useQuotes();
+
+  let unrealized = 0;
+  let marginUsed = 0;
+  for (const p of positions) {
+    const instrument = getInstrument(p.symbol);
+    const live = quotes[p.symbol];
+    const mark =
+      p.side === "buy"
+        ? live?.bid ?? instrument?.bid ?? p.openPrice
+        : live?.ask ?? instrument?.ask ?? p.openPrice;
+    unrealized += computePnl(p, mark);
+    marginUsed += p.volume * p.openPrice;
+  }
+  const realized = closedPositions.reduce((s, c) => s + c.realizedPnl, 0);
+
+  const initial = ACCOUNT.balance;
+  const equity = initial + realized + unrealized;
+  const cash = initial + realized - marginUsed;
+  const totalPnL = realized + unrealized;
+
+  return {
+    balance: equity,
+    cash,
+    buyingPower: cash,
+    marginUsed,
+    dayPnL: totalPnL,
+    totalPnL,
+    equity,
+    realizedPnL: realized,
+    unrealizedPnL: unrealized,
+  };
 }

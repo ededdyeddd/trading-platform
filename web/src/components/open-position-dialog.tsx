@@ -1,18 +1,15 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, GripHorizontal, X } from "lucide-react";
-import {
-  ACCOUNT,
-  formatUsd,
-  getInstrument,
-} from "@/lib/mock-data";
+import { GripHorizontal, X } from "lucide-react";
+import { formatUsd, getInstrument } from "@/lib/mock-data";
 import { useActiveInstrument } from "@/lib/active-instrument-context";
-import { usePositions } from "@/lib/positions-context";
+import { useAccountStats, usePositions } from "@/lib/positions-context";
 import { useQuote } from "@/lib/quotes-context";
 import { TickerIcon } from "@/components/ticker-icon";
 import { type Side } from "@/components/sell-buy-quote";
+import { OrderTypeSelect, type OrderType } from "@/components/order-type-select";
 
 /**
  * Open-position dialog — triggered by double-click on an InstrumentsPanel
@@ -42,14 +39,6 @@ import { type Side } from "@/components/sell-buy-quote";
 const DIALOG_WIDTH = 320;
 const DIALOG_EST_HEIGHT = 460;
 
-type OrderType = "market" | "limit" | "stop";
-
-const ORDER_TYPES: { value: OrderType; label: string }[] = [
-  { value: "market", label: "Market" },
-  { value: "limit", label: "Limit" },
-  { value: "stop", label: "Stop" },
-];
-
 export function OpenPositionDialog({
   symbol,
   anchor,
@@ -64,6 +53,7 @@ export function OpenPositionDialog({
   const instrument = getInstrument(symbol);
   const live = useQuote(symbol);
   const { openMarketPosition, openPendingOrder } = usePositions();
+  const accountStats = useAccountStats();
   const { openTab } = useActiveInstrument();
 
   const [side, setSide] = useState<Side>("buy");
@@ -339,7 +329,7 @@ export function OpenPositionDialog({
             <div className="flex items-center justify-between">
               <span className="text-text-muted">Buying power</span>
               <span className="font-mono tabular-nums text-text-muted">
-                {formatUsd(ACCOUNT.buyingPower)}
+                {formatUsd(accountStats.buyingPower)}
               </span>
             </div>
           </div>
@@ -492,90 +482,3 @@ function StepperField({
   );
 }
 
-/* ──────────────────────────────────────────────────────────────────────
- * OrderTypeSelect — small custom dropdown for the 3 order types.
- * ─────────────────────────────────────────────────────────────────────*/
-
-function OrderTypeSelect({
-  value,
-  onChange,
-}: {
-  value: OrderType;
-  onChange: (next: OrderType) => void;
-}) {
-  const [open, setOpen] = useState(false);
-  const wrapperRef = useRef<HTMLDivElement>(null);
-  const current = useMemo(
-    () => ORDER_TYPES.find((o) => o.value === value),
-    [value]
-  );
-
-  const handleOutsideClick = useCallback((e: MouseEvent) => {
-    if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
-      setOpen(false);
-    }
-  }, []);
-  const handleKey = useCallback((e: KeyboardEvent) => {
-    if (e.key === "Escape") setOpen(false);
-  }, []);
-
-  useEffect(() => {
-    if (!open) return;
-    document.addEventListener("mousedown", handleOutsideClick);
-    document.addEventListener("keydown", handleKey);
-    return () => {
-      document.removeEventListener("mousedown", handleOutsideClick);
-      document.removeEventListener("keydown", handleKey);
-    };
-  }, [open, handleOutsideClick, handleKey]);
-
-  return (
-    <div ref={wrapperRef} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        className="flex h-9 w-full items-center gap-2 rounded-md border border-border bg-surface-2 px-3 text-xs hover:bg-surface-3"
-      >
-        <span className="text-text">{current?.label ?? "Market"}</span>
-        <div className="flex-1" />
-        <ChevronDown
-          size={12}
-          className={`text-text-muted transition-transform ${
-            open ? "rotate-180" : ""
-          }`}
-        />
-      </button>
-      {open && (
-        <div
-          role="listbox"
-          className="absolute inset-x-0 top-full z-10 mt-1 overflow-hidden rounded-md border border-border bg-surface-2 py-1 shadow-lg"
-        >
-          {ORDER_TYPES.map((opt) => {
-            const selected = opt.value === value;
-            return (
-              <button
-                key={opt.value}
-                type="button"
-                role="option"
-                aria-selected={selected}
-                onClick={() => {
-                  onChange(opt.value);
-                  setOpen(false);
-                }}
-                className={`flex w-full items-center px-3 py-1.5 text-left text-xs transition-colors ${
-                  selected
-                    ? "bg-surface-3 text-text"
-                    : "text-text-muted hover:bg-surface-3 hover:text-text"
-                }`}
-              >
-                {opt.label}
-              </button>
-            );
-          })}
-        </div>
-      )}
-    </div>
-  );
-}

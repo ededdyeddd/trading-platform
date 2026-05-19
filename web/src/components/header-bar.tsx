@@ -11,15 +11,19 @@ import {
   User,
   X,
 } from "lucide-react";
-import { ACCOUNT, formatUsd } from "@/lib/mock-data";
+import { formatUsd } from "@/lib/mock-data";
 import { useActiveInstrument } from "@/lib/active-instrument-context";
-import { useHasOpenPosition } from "@/lib/positions-context";
+import {
+  useAccountStats,
+  useHasOpenPosition,
+} from "@/lib/positions-context";
 import { AddInstrumentDialog } from "@/components/add-instrument-dialog";
 import { TickerIcon } from "@/components/ticker-icon";
 
 export function HeaderBar() {
   const { activeSymbol, openTabs, setActiveSymbol, closeTab } =
     useActiveInstrument();
+  const stats = useAccountStats();
   const [addDialogOpen, setAddDialogOpen] = useState(false);
   const canCloseTabs = openTabs.length > 1;
 
@@ -60,7 +64,7 @@ export function HeaderBar() {
           Demo
         </span>
         <span className="font-mono font-medium text-text tabular-nums">
-          {formatUsd(ACCOUNT.equity)}
+          {formatUsd(stats.equity)}
         </span>
         <span className="text-[11px] text-text-muted">USD</span>
         <ChevronDown size={12} className="text-text-muted" />

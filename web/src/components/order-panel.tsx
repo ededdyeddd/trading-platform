@@ -2,33 +2,26 @@
 
 import { useState } from "react";
 import { ChevronDown, HelpCircle, X } from "lucide-react";
-import {
-  ACCOUNT,
-  SENTIMENT,
-  formatUsd,
-  getInstrument,
-} from "@/lib/mock-data";
+import { SENTIMENT, formatUsd, getInstrument } from "@/lib/mock-data";
 import { useActiveInstrument } from "@/lib/active-instrument-context";
-import { usePositions } from "@/lib/positions-context";
+import { useAccountStats, usePositions } from "@/lib/positions-context";
 import { useQuote } from "@/lib/quotes-context";
 import { TickerIcon } from "@/components/ticker-icon";
 import { SellBuyQuoteSplit, type Side } from "@/components/sell-buy-quote";
 import { SentimentBar } from "@/components/sentiment-bar";
-
-type OrderTab = "market" | "pending";
-type PendingType = "limit" | "stop";
+import { OrderTypeSelect, type OrderType } from "@/components/order-type-select";
 
 export function OrderPanel() {
   const [side, setSide] = useState<Side>("buy");
-  const [tab, setTab] = useState<OrderTab>("market");
+  const [orderType, setOrderType] = useState<OrderType>("market");
   const [volume, setVolume] = useState(1);
   const [tp, setTp] = useState("");
   const [sl, setSl] = useState("");
-  const [pendingType] = useState<PendingType>("limit");
   const [openPrice, setOpenPrice] = useState("");
 
   const { activeSymbol, openTabs, closeTab } = useActiveInstrument();
   const { openMarketPosition, openPendingOrder } = usePositions();
+  const accountStats = useAccountStats();
   const instrument = getInstrument(activeSymbol);
   const live = useQuote(activeSymbol);
   if (!instrument) return null;
@@ -48,7 +41,7 @@ export function OrderPanel() {
   const isMarketValid = volume > 0;
   const isPendingValid =
     volume > 0 && openPriceNum !== null && openPriceNum > 0;
-  const canConfirm = tab === "market" ? isMarketValid : isPendingValid;
+  const canConfirm = orderType === "market" ? isMarketValid : isPendingValid;
 
   function resetForm() {
     setVolume(1);
@@ -59,7 +52,7 @@ export function OrderPanel() {
 
   function handleConfirm() {
     if (!canConfirm) return;
-    if (tab === "market") {
+    if (orderType === "market") {
       // Market fill = buy at ask, sell at bid.
       openMarketPosition({
         symbol: activeSymbol,
@@ -73,7 +66,7 @@ export function OrderPanel() {
       openPendingOrder({
         symbol: activeSymbol,
         side,
-        type: pendingType,
+        type: orderType,
         volume,
         triggerPrice: openPriceNum!,
         takeProfit: tpNum,
@@ -128,37 +121,22 @@ export function OrderPanel() {
         {/* Sentiment */}
         <SentimentBar buy={sentiment.buy} sell={sentiment.sell} />
 
-        {/* Tabs */}
-        <div className="flex border-b border-border text-xs">
-          {(["market", "pending"] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTab(t)}
-              className={`flex-1 border-b-2 py-2 transition-colors ${
-                tab === t
-                  ? "border-accent font-medium text-text"
-                  : "border-transparent text-text-muted hover:text-text"
-              }`}
-            >
-              {t === "market" ? "Market" : "Pending"}
-            </button>
-          ))}
+        {/* Order type — replaces the old Market/Pending tabs. Same
+            dropdown chrome as <OpenPositionDialog> so both surfaces
+            stay in sync. */}
+        <div className="flex flex-col gap-1.5">
+          <div className="text-[11px] text-text-muted">Order type</div>
+          <OrderTypeSelect value={orderType} onChange={setOrderType} />
         </div>
 
-        {/* Form fields */}
-        {tab === "pending" && (
+        {/* Open price — required when the order is Limit or Stop. */}
+        {orderType !== "market" && (
           <FormField
-            label="Open price"
+            label={orderType === "limit" ? "Limit price" : "Stop price"}
             value={openPrice}
             onChange={setOpenPrice}
             placeholder={bid.toFixed(2)}
             mono
-            suffix={
-              <button className="flex items-center gap-1 rounded bg-surface-3 px-1.5 py-0.5 text-[10px] uppercase tracking-wider text-text-muted hover:text-text">
-                {pendingType === "limit" ? "Limit" : "Stop"}
-                <ChevronDown size={9} />
-              </button>
-            }
           />
         )}
         <FormField
@@ -216,8 +194,7 @@ export function OrderPanel() {
       <div className="flex shrink-0 flex-col gap-2 border-t border-border p-3">
         <ConfirmButton
           side={side}
-          tab={tab}
-          pendingType={pendingType}
+          orderType={orderType}
           volume={volume}
           disabled={!canConfirm}
           onClick={handleConfirm}
@@ -234,7 +211,7 @@ export function OrderPanel() {
           <FooterRow label="Margin used" value="$0.00" />
           <FooterRow
             label="Buying power"
-            value={formatUsd(ACCOUNT.buyingPower)}
+            value={formatUsd(accountStats.buyingPower)}
           />
           <button className="flex items-center gap-1 self-start text-[11px] text-text-muted hover:text-text">
             More <ChevronDown size={10} />
@@ -251,15 +228,13 @@ export function OrderPanel() {
 
 function ConfirmButton({
   side,
-  tab,
-  pendingType,
+  orderType,
   volume,
   disabled,
   onClick,
 }: {
   side: Side;
-  tab: OrderTab;
-  pendingType: PendingType;
+  orderType: OrderType;
   volume: number;
   disabled: boolean;
   onClick: () => void;
@@ -268,9 +243,9 @@ function ConfirmButton({
   const verb = side === "buy" ? "Buy" : "Sell";
   const unit = volume === 1 ? "Share" : "Shares";
   const label =
-    tab === "market"
+    orderType === "market"
       ? `${verb} ${activeSymbol} · ${volume} ${unit}`
-      : `Confirm ${verb} ${pendingType === "limit" ? "Limit" : "Stop"} · ${volume} ${unit}`;
+      : `Confirm ${verb} ${orderType === "limit" ? "Limit" : "Stop"} · ${volume} ${unit}`;
 
   const styles =
     side === "buy"

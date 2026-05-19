@@ -19,6 +19,7 @@ import {
 } from "@/lib/mock-data";
 import { usePositions } from "@/lib/positions-context";
 import { useQuote } from "@/lib/quotes-context";
+import { EditPositionDialog } from "@/components/edit-position-dialog";
 import { TickerIcon } from "@/components/ticker-icon";
 
 type Tab = "open" | "pending" | "closed";
@@ -31,7 +32,17 @@ const TAB_LABELS: Record<Tab, string> = {
 
 export function PositionsPanel() {
   const [tab, setTab] = useState<Tab>("open");
+  const [editing, setEditing] = useState<{
+    positionId: string;
+    anchor: { x: number; y: number };
+  } | null>(null);
   const { positions, pendingOrders, closedPositions } = usePositions();
+
+  // If the position being edited gets closed externally, the dialog
+  // self-closes via its own effect — but clear our local state too so
+  // we don't keep dangling references.
+  const editingPositionExists =
+    editing != null && positions.some((p) => p.id === editing.positionId);
 
   const counts: Record<Tab, number> = {
     open: positions.length,
@@ -64,7 +75,12 @@ export function PositionsPanel() {
           (positions.length === 0 ? (
             <EmptyState label="No open positions" />
           ) : (
-            <OpenPositionsTable rows={positions} />
+            <OpenPositionsTable
+              rows={positions}
+              onEdit={(positionId, anchor) =>
+                setEditing({ positionId, anchor })
+              }
+            />
           ))}
         {tab === "pending" &&
           (pendingOrders.length === 0 ? (
@@ -79,6 +95,14 @@ export function PositionsPanel() {
             <ClosedPositionsTable rows={closedPositions} />
           ))}
       </div>
+
+      {editing && editingPositionExists && (
+        <EditPositionDialog
+          positionId={editing.positionId}
+          anchor={editing.anchor}
+          onClose={() => setEditing(null)}
+        />
+      )}
     </section>
   );
 }
@@ -90,7 +114,13 @@ export function PositionsPanel() {
 const OPEN_COLS =
   "grid-cols-[100px_70px_70px_100px_100px_90px_90px_110px_90px_60px]";
 
-function OpenPositionsTable({ rows }: { rows: Position[] }) {
+function OpenPositionsTable({
+  rows,
+  onEdit,
+}: {
+  rows: Position[];
+  onEdit: (positionId: string, anchor: { x: number; y: number }) => void;
+}) {
   return (
     <div className="min-w-full">
       <div
@@ -108,13 +138,19 @@ function OpenPositionsTable({ rows }: { rows: Position[] }) {
         <span></span>
       </div>
       {rows.map((p) => (
-        <OpenPositionRow key={p.id} row={p} />
+        <OpenPositionRow key={p.id} row={p} onEdit={onEdit} />
       ))}
     </div>
   );
 }
 
-function OpenPositionRow({ row }: { row: Position }) {
+function OpenPositionRow({
+  row,
+  onEdit,
+}: {
+  row: Position;
+  onEdit: (positionId: string, anchor: { x: number; y: number }) => void;
+}) {
   const { closePosition } = usePositions();
   const live = useQuote(row.symbol);
   const instrument = getInstrument(row.symbol);
@@ -166,6 +202,12 @@ function OpenPositionRow({ row }: { row: Position }) {
       </span>
       <div className="flex items-center justify-end gap-1.5 text-text-muted">
         <button
+          onClick={(e) => {
+            const rect = e.currentTarget.getBoundingClientRect();
+            // Anchor the floating dialog just left of the pencil so it
+            // doesn't cover the rest of the row.
+            onEdit(row.id, { x: rect.left - 340, y: rect.top });
+          }}
           aria-label="Edit position"
           className="rounded p-0.5 hover:bg-surface-3 hover:text-text"
         >
