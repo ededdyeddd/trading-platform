@@ -140,10 +140,9 @@ function InstrumentTab({
         {hasPosition && (
           <span
             aria-label="Has open position"
-            className="font-mono text-[10px] leading-none tracking-tighter text-sell"
-          >
-            ‖‖‖
-          </span>
+            title="Has open position"
+            className="h-2 w-2 shrink-0 rounded-[1px] bg-accent"
+          />
         )}
       </button>
       {canClose && (

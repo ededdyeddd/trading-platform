@@ -258,10 +258,8 @@ function InstrumentRow({
         <span
           aria-label="Has open position"
           title="Has open position"
-          className="font-mono text-[10px] leading-none tracking-tighter text-sell"
-        >
-          ‖‖‖
-        </span>
+          className="h-2 w-2 shrink-0 rounded-[1px] bg-accent"
+        />
       )}
       <div className="flex-1" />
       <span className="flex w-12 items-center justify-center">
