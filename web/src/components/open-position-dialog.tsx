@@ -75,10 +75,15 @@ export function OpenPositionDialog({
       y: Math.max(16, (window.innerHeight - DIALOG_EST_HEIGHT) / 3),
     };
     const target = anchor ?? fallback;
-    // Clamp inside the viewport so the title bar is always reachable.
+    // Clamp so the FULL dialog (including footer) fits within the
+    // viewport — anchors near the bottom would otherwise leave the
+    // Confirm/Cancel buttons clipped off-screen.
     return {
       x: Math.max(8, Math.min(target.x, window.innerWidth - DIALOG_WIDTH - 8)),
-      y: Math.max(8, Math.min(target.y, window.innerHeight - 80)),
+      y: Math.max(
+        8,
+        Math.min(target.y, window.innerHeight - DIALOG_EST_HEIGHT - 8)
+      ),
     };
   });
   // Dragging state drives cursor styling; the ref carries the
