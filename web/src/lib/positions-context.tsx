@@ -1,17 +1,26 @@
 "use client";
 
-import { createContext, useCallback, useContext, useMemo, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 import {
   ACCOUNT,
   PENDING_ORDERS,
   POSITIONS,
   computePnl,
+  formatUsd,
   getInstrument,
   type ClosedPosition,
   type PendingOrder,
   type Position,
 } from "@/lib/mock-data";
 import { useQuotes } from "@/lib/quotes-context";
+import { useToast } from "@/lib/toast-context";
 
 /**
  * PositionsProvider — single source of truth for the user's trading
@@ -41,6 +50,16 @@ function newId(prefix: string): string {
       .toString(36)
       .padStart(3, "0")
   );
+}
+
+function fmtPrice(symbol: string, value: number): string {
+  const precision = getInstrument(symbol)?.precision ?? 2;
+  return value.toFixed(precision);
+}
+
+function fmtPnl(value: number): string {
+  const sign = value >= 0 ? "+" : "−";
+  return `${sign}${formatUsd(Math.abs(value))}`;
 }
 
 export type OpenMarketArgs = {
@@ -101,21 +120,34 @@ export function PositionsProvider({
     pendingOrders: [...PENDING_ORDERS],
     closedPositions: [],
   }));
+  const quotes = useQuotes();
+  const { toast } = useToast();
 
-  const openMarketPosition = useCallback((args: OpenMarketArgs): Position => {
-    const position: Position = {
-      id: newId(POSITION_ID_PREFIX),
-      symbol: args.symbol,
-      side: args.side,
-      volume: args.volume,
-      openPrice: args.openPrice,
-      takeProfit: args.takeProfit,
-      stopLoss: args.stopLoss,
-      openedAt: Date.now(),
-    };
-    setState((prev) => ({ ...prev, positions: [...prev.positions, position] }));
-    return position;
-  }, []);
+  const openMarketPosition = useCallback(
+    (args: OpenMarketArgs): Position => {
+      const position: Position = {
+        id: newId(POSITION_ID_PREFIX),
+        symbol: args.symbol,
+        side: args.side,
+        volume: args.volume,
+        openPrice: args.openPrice,
+        takeProfit: args.takeProfit,
+        stopLoss: args.stopLoss,
+        openedAt: Date.now(),
+      };
+      setState((prev) => ({
+        ...prev,
+        positions: [...prev.positions, position],
+      }));
+      toast({
+        kind: "success",
+        title: "Position opened",
+        description: `${args.side.toUpperCase()} ${args.volume} ${args.symbol} @ ${fmtPrice(args.symbol, args.openPrice)}`,
+      });
+      return position;
+    },
+    [toast]
+  );
 
   const openPendingOrder = useCallback(
     (args: OpenPendingArgs): PendingOrder => {
@@ -134,45 +166,155 @@ export function PositionsProvider({
         ...prev,
         pendingOrders: [...prev.pendingOrders, order],
       }));
+      toast({
+        kind: "info",
+        title: "Pending order placed",
+        description: `${args.type === "limit" ? "Limit" : "Stop"} ${args.side.toUpperCase()} ${args.volume} ${args.symbol} @ ${fmtPrice(args.symbol, args.triggerPrice)}`,
+      });
       return order;
     },
-    []
+    [toast]
   );
 
-  const closePosition = useCallback((id: string, closePrice: number) => {
+  const closePosition = useCallback(
+    (id: string, closePrice: number) => {
+      setState((prev) => {
+        const target = prev.positions.find((p) => p.id === id);
+        if (!target) return prev;
+        const closed: ClosedPosition = {
+          ...target,
+          closePrice,
+          closedAt: Date.now(),
+          realizedPnl: computePnl(target, closePrice),
+        };
+        toast({
+          kind: closed.realizedPnl >= 0 ? "success" : "error",
+          title: "Position closed",
+          description: `${target.side.toUpperCase()} ${target.volume} ${target.symbol} · P&L ${fmtPnl(closed.realizedPnl)}`,
+        });
+        return {
+          ...prev,
+          positions: prev.positions.filter((p) => p.id !== id),
+          closedPositions: [...prev.closedPositions, closed],
+        };
+      });
+    },
+    [toast]
+  );
+
+  const cancelPendingOrder = useCallback(
+    (id: string) => {
+      setState((prev) => {
+        const target = prev.pendingOrders.find((o) => o.id === id);
+        if (!target) return prev;
+        toast({
+          kind: "warning",
+          title: "Pending order cancelled",
+          description: `${target.type === "limit" ? "Limit" : "Stop"} ${target.side.toUpperCase()} ${target.volume} ${target.symbol}`,
+        });
+        return {
+          ...prev,
+          pendingOrders: prev.pendingOrders.filter((o) => o.id !== id),
+        };
+      });
+    },
+    [toast]
+  );
+
+  const updatePosition = useCallback(
+    (id: string, patch: PositionPatch) => {
+      setState((prev) => {
+        const idx = prev.positions.findIndex((p) => p.id === id);
+        if (idx === -1) return prev;
+        const next = prev.positions.slice();
+        const merged = { ...prev.positions[idx], ...patch };
+        next[idx] = merged;
+        const parts: string[] = [];
+        if ("takeProfit" in patch) {
+          parts.push(
+            `TP ${merged.takeProfit === null ? "off" : fmtPrice(merged.symbol, merged.takeProfit)}`
+          );
+        }
+        if ("stopLoss" in patch) {
+          parts.push(
+            `SL ${merged.stopLoss === null ? "off" : fmtPrice(merged.symbol, merged.stopLoss)}`
+          );
+        }
+        toast({
+          kind: "info",
+          title: "Position updated",
+          description: `${merged.symbol}${parts.length ? " · " + parts.join(" · ") : ""}`,
+        });
+        return { ...prev, positions: next };
+      });
+    },
+    [toast]
+  );
+
+  // Pending-order trigger watcher: each time live quotes tick, scan
+  // every pending order and convert any whose trigger condition is
+  // satisfied into a market position. State is updated in a single
+  // setState so multiple simultaneous fills don't fight each other.
+  //
+  // Conditions:
+  //   limit buy  → ask ≤ trigger  (price came down to the limit)
+  //   limit sell → bid ≥ trigger  (price rose to the limit)
+  //   stop buy   → ask ≥ trigger  (breakout above)
+  //   stop sell  → bid ≤ trigger  (breakdown below)
+  useEffect(() => {
+    if (state.pendingOrders.length === 0) return;
+    const triggered: { order: PendingOrder; fillPrice: number }[] = [];
+    for (const order of state.pendingOrders) {
+      const q = quotes[order.symbol];
+      if (!q) continue;
+      const ref = order.side === "buy" ? q.ask : q.bid;
+      const fired =
+        order.side === "buy"
+          ? order.type === "limit"
+            ? ref <= order.triggerPrice
+            : ref >= order.triggerPrice
+          : order.type === "limit"
+            ? ref >= order.triggerPrice
+            : ref <= order.triggerPrice;
+      if (fired) triggered.push({ order, fillPrice: ref });
+    }
+    if (triggered.length === 0) return;
+
+    // setState here is the trigger event — we're synthesizing fills
+    // from external quote ticks. The cascade self-terminates: the
+    // updated pendingOrders no longer contains the filled orders, so
+    // re-running this effect produces an empty `triggered` and bails
+    // out at the guard above.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setState((prev) => {
-      const target = prev.positions.find((p) => p.id === id);
-      if (!target) return prev;
-      const closed: ClosedPosition = {
-        ...target,
-        closePrice,
-        closedAt: Date.now(),
-        realizedPnl: computePnl(target, closePrice),
-      };
+      const triggeredIds = new Set(triggered.map((t) => t.order.id));
+      const newPositions: Position[] = triggered.map(({ order, fillPrice }) => ({
+        id: newId(POSITION_ID_PREFIX),
+        symbol: order.symbol,
+        side: order.side,
+        volume: order.volume,
+        openPrice: fillPrice,
+        takeProfit: order.takeProfit,
+        stopLoss: order.stopLoss,
+        openedAt: Date.now(),
+      }));
       return {
         ...prev,
-        positions: prev.positions.filter((p) => p.id !== id),
-        closedPositions: [...prev.closedPositions, closed],
+        positions: [...prev.positions, ...newPositions],
+        pendingOrders: prev.pendingOrders.filter(
+          (o) => !triggeredIds.has(o.id)
+        ),
       };
     });
-  }, []);
 
-  const cancelPendingOrder = useCallback((id: string) => {
-    setState((prev) => ({
-      ...prev,
-      pendingOrders: prev.pendingOrders.filter((o) => o.id !== id),
-    }));
-  }, []);
-
-  const updatePosition = useCallback((id: string, patch: PositionPatch) => {
-    setState((prev) => {
-      const idx = prev.positions.findIndex((p) => p.id === id);
-      if (idx === -1) return prev;
-      const next = prev.positions.slice();
-      next[idx] = { ...prev.positions[idx], ...patch };
-      return { ...prev, positions: next };
-    });
-  }, []);
+    for (const { order, fillPrice } of triggered) {
+      toast({
+        kind: "info",
+        title: "Order triggered",
+        description: `${order.type === "limit" ? "Limit" : "Stop"} ${order.side.toUpperCase()} ${order.volume} ${order.symbol} @ ${fmtPrice(order.symbol, fillPrice)}`,
+      });
+    }
+  }, [quotes, state.pendingOrders, toast]);
 
   const value = useMemo<Ctx>(
     () => ({

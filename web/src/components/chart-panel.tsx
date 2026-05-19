@@ -57,7 +57,7 @@ export function ChartPanel() {
   const [timeframe, setTimeframe] = useState<Timeframe>(DEFAULT_TIMEFRAME);
   const instrument = getInstrument(activeSymbol);
   const candles = useChartCandles(activeSymbol, timeframe);
-  const { positions, pendingOrders } = usePositions();
+  const { positions, pendingOrders, closePosition } = usePositions();
   const live = useQuote(activeSymbol);
   const lastCandle = candles[candles.length - 1];
   const firstCandle = candles[0];
@@ -82,6 +82,22 @@ export function ChartPanel() {
               : live?.ask ?? instrument?.ask ?? p.openPrice;
           return sum + computePnl(p, mark);
         }, 0);
+
+  // Resolve close-price from the latest quote (bid for long, ask for
+  // short) and dispatch — kept here so the canvas stays focused on
+  // rendering rather than pricing logic.
+  const handleClosePosition = useCallback(
+    (id: string) => {
+      const target = symbolPositions.find((p) => p.id === id);
+      if (!target) return;
+      const closePrice =
+        target.side === "buy"
+          ? live?.bid ?? instrument?.bid ?? target.openPrice
+          : live?.ask ?? instrument?.ask ?? target.openPrice;
+      closePosition(id, closePrice);
+    },
+    [symbolPositions, live, instrument, closePosition]
+  );
 
   return (
     <section className="flex h-full flex-col bg-surface">
@@ -110,6 +126,7 @@ export function ChartPanel() {
             candles={candles}
             positions={symbolPositions}
             pendingOrders={symbolPendingOrders}
+            onClosePosition={handleClosePosition}
           />
         </div>
       </div>
@@ -352,16 +369,24 @@ function ChartCanvas({
   candles,
   positions,
   pendingOrders,
+  onClosePosition,
 }: {
   chartType: ChartType;
   candles: Candle[];
   positions: Position[];
   pendingOrders: PendingOrder[];
+  onClosePosition: (id: string) => void;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const priceSeriesRef = useRef<AnyPriceSeries | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
   const [contextMenu, setContextMenu] = useState<ChartContextMenuPosition | null>(null);
+  // Y-pixel offset (from chart-container top) for each open position's
+  // entry line. `undefined` = off-screen / not yet measured; we hide
+  // the close button in that case.
+  const [positionAnchors, setPositionAnchors] = useState<
+    Record<string, number>
+  >({});
 
   const { settings } = useSettings();
   const showOpenPositions = settings.chart.openPositions;
@@ -586,6 +611,43 @@ function ChartCanvas({
     };
   }, [showOpenPositions, positions]);
 
+  // Effect: sync the HTML close-button overlay with the entry-line y.
+  // lightweight-charts doesn't emit a "price-scale changed" event, so
+  // we poll via RAF while there are visible positions. The functional
+  // setter bails out when nothing has moved more than half a pixel to
+  // avoid re-render thrash.
+  useEffect(() => {
+    let raf = 0;
+    function tick() {
+      const series = priceSeriesRef.current;
+      const active = showOpenPositions && positions.length > 0 && !!series;
+      setPositionAnchors((prev) => {
+        if (!active) {
+          return Object.keys(prev).length === 0 ? prev : {};
+        }
+        const next: Record<string, number> = {};
+        for (const p of positions) {
+          const y = series!.priceToCoordinate(p.openPrice);
+          if (y != null && Number.isFinite(y)) {
+            next[p.id] = y as number;
+          }
+        }
+        const prevKeys = Object.keys(prev);
+        const nextKeys = Object.keys(next);
+        if (
+          prevKeys.length === nextKeys.length &&
+          nextKeys.every((k) => Math.abs((prev[k] ?? -1) - next[k]) < 0.5)
+        ) {
+          return prev;
+        }
+        return next;
+      });
+      raf = requestAnimationFrame(tick);
+    }
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, [showOpenPositions, positions]);
+
   // Effect: TP / SL / Stop / Limit markers — one toggle covers all four
   // marker types (TP and SL of open positions, plus pending-order
   // trigger lines)
@@ -647,6 +709,38 @@ function ChartCanvas({
   return (
     <>
       <div ref={containerRef} className="absolute inset-0" />
+      {/* Position close overlay — one tag per open position, anchored
+          to the entry-line y. Sits to the left of the price-scale so
+          its label doesn't collide with the right-axis price ticks. */}
+      {showOpenPositions && (
+        <div className="pointer-events-none absolute inset-0 z-10">
+          {positions.map((p) => {
+            const y = positionAnchors[p.id];
+            if (y == null) return null;
+            const sideColor =
+              p.side === "buy" ? "text-buy" : "text-sell";
+            return (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => onClosePosition(p.id)}
+                aria-label={`Close ${p.symbol} ${p.side} position`}
+                title={`Close ${p.side.toUpperCase()} ${p.volume} ${p.symbol}`}
+                style={{ top: y - 10 }}
+                className="pointer-events-auto group absolute right-[60px] flex h-[20px] items-center gap-1 rounded-sm border border-border bg-surface-2 px-1.5 text-[10px] font-medium text-text-muted shadow-sm transition-colors hover:border-sell hover:bg-sell hover:text-text"
+              >
+                <span
+                  className={`text-[9px] uppercase tracking-wider ${sideColor} group-hover:text-text`}
+                >
+                  {p.side}
+                </span>
+                <span className="font-mono tabular-nums">{p.volume}</span>
+                <X size={10} />
+              </button>
+            );
+          })}
+        </div>
+      )}
       {contextMenu && (
         <ChartContextMenu
           position={contextMenu}

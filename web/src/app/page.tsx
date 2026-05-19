@@ -18,20 +18,23 @@ import { FavoritesProvider } from "@/lib/favorites-context";
 import { PositionsProvider } from "@/lib/positions-context";
 import { QuotesProvider } from "@/lib/quotes-context";
 import { SettingsProvider, useSettings } from "@/lib/settings-context";
+import { ToastProvider } from "@/lib/toast-context";
 
 export default function Home() {
   return (
-    <SettingsProvider>
-      <FavoritesProvider>
-        <QuotesProvider>
-          <PositionsProvider>
-            <ActiveInstrumentProvider>
-              <Terminal />
-            </ActiveInstrumentProvider>
-          </PositionsProvider>
-        </QuotesProvider>
-      </FavoritesProvider>
-    </SettingsProvider>
+    <ToastProvider>
+      <SettingsProvider>
+        <FavoritesProvider>
+          <QuotesProvider>
+            <PositionsProvider>
+              <ActiveInstrumentProvider>
+                <Terminal />
+              </ActiveInstrumentProvider>
+            </PositionsProvider>
+          </QuotesProvider>
+        </FavoritesProvider>
+      </SettingsProvider>
+    </ToastProvider>
   );
 }
 
