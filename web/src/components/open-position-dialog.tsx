@@ -215,7 +215,7 @@ export function OpenPositionDialog({
       role="dialog"
       aria-label={`Open position on ${symbol}`}
       style={{ left: pos.x, top: pos.y, width: DIALOG_WIDTH }}
-      className="fixed z-50 flex max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-2xl"
+      className="fixed z-50 flex max-w-[calc(100vw-32px)] flex-col overflow-hidden rounded-lg border border-border bg-surface shadow-2xl animate-in fade-in zoom-in-95 slide-in-from-top-1 duration-150 ease-out"
     >
       {/* Header — drag handle */}
       <div

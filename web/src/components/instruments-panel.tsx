@@ -24,7 +24,7 @@ export function InstrumentsPanel() {
     anchor: { x: number; y: number };
   } | null>(null);
   const { favorites } = useFavorites();
-  const { activeSymbol } = useActiveInstrument();
+  const { activeSymbol, openTab } = useActiveInstrument();
 
   const results = useMemo(
     () => filterInstruments(WATCHLIST, category, query, favorites),
@@ -83,7 +83,18 @@ export function InstrumentsPanel() {
               key={instrument.symbol}
               instrument={instrument}
               active={instrument.symbol === activeSymbol}
-              onDoubleClick={(rect) =>
+              dialogOpen={tradeDialog !== null}
+              onLeftClick={() => {
+                // Left-click swaps the symbol inside the open dialog so
+                // the user can compare instruments without losing their
+                // place; otherwise it opens/activates the chart tab.
+                if (tradeDialog) {
+                  setTradeDialog({ ...tradeDialog, symbol: instrument.symbol });
+                } else {
+                  openTab(instrument.symbol);
+                }
+              }}
+              onRightClick={(rect) =>
                 // Anchor the dialog just to the right of the row, top-
                 // aligned. OpenPositionDialog clamps to the viewport so
                 // narrow / right-edge cases stay visible.
@@ -188,13 +199,20 @@ function CategorySelect({
 function InstrumentRow({
   instrument,
   active,
-  onDoubleClick,
+  dialogOpen,
+  onLeftClick,
+  onRightClick,
 }: {
   instrument: Instrument;
   active: boolean;
+  /** True while a trade dialog is open — switches the row's title hint
+   *  to reflect that left-click swaps the dialog's symbol instead of
+   *  opening a chart tab. */
+  dialogOpen: boolean;
+  onLeftClick: () => void;
   /** Receives the row's viewport rect so the trade dialog can be
    *  anchored next to it. */
-  onDoubleClick: (rect: DOMRect) => void;
+  onRightClick: (rect: DOMRect) => void;
 }) {
   const { symbol, precision } = instrument;
   const live = useQuote(symbol);
@@ -214,10 +232,16 @@ function InstrumentRow({
   return (
     <button
       aria-current={active ? "true" : undefined}
-      onDoubleClick={(e) =>
-        onDoubleClick(e.currentTarget.getBoundingClientRect())
+      onClick={onLeftClick}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        onRightClick(e.currentTarget.getBoundingClientRect());
+      }}
+      title={
+        dialogOpen
+          ? `Click to view ${symbol} in the trade dialog · right-click to re-anchor`
+          : `Click to open ${symbol} · right-click to trade`
       }
-      title={`Double-click to trade ${symbol}`}
       className={`relative flex items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors ${
         active ? "bg-surface-2" : "hover:bg-surface-2"
       }`}

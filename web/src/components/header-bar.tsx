@@ -34,34 +34,40 @@ export function HeaderBar() {
     <header className="flex h-[52px] items-center gap-3 bg-surface px-3">
       <Logo />
 
-      {/* instrument tabs */}
-      {showTabs && (
-        <div className="ml-2 flex h-full items-center">
-          {openTabs.map((symbol) => (
-            <InstrumentTab
-              key={symbol}
-              symbol={symbol}
-              active={symbol === activeSymbol}
-              canClose={canCloseTabs}
-              onClick={() => setActiveSymbol(symbol)}
-              onClose={() => closeTab(symbol)}
-            />
-          ))}
+      {/* instrument tabs — overflow scrolls horizontally with a soft
+          fade on the trailing edge so the account selector keeps its
+          space when many tabs are open. */}
+      {showTabs ? (
+        <div className="ml-2 flex h-full min-w-0 flex-1 items-center">
+          <div
+            className="flex h-full min-w-0 flex-1 items-center overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] [mask-image:linear-gradient(to_right,black_calc(100%-24px),transparent_100%)]"
+          >
+            {openTabs.map((symbol) => (
+              <InstrumentTab
+                key={symbol}
+                symbol={symbol}
+                active={symbol === activeSymbol}
+                canClose={canCloseTabs}
+                onClick={() => setActiveSymbol(symbol)}
+                onClose={() => closeTab(symbol)}
+              />
+            ))}
+          </div>
           <button
             aria-label="Add instrument"
             onClick={() => setAddDialogOpen(true)}
-            className="ml-1 flex h-7 w-7 items-center justify-center rounded-md text-text-muted hover:bg-surface-2 hover:text-text"
+            className="ml-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-md text-text-muted hover:bg-surface-2 hover:text-text"
           >
             <Plus size={14} />
           </button>
         </div>
+      ) : (
+        <div className="flex-1" />
       )}
 
       {addDialogOpen && (
         <AddInstrumentDialog onClose={() => setAddDialogOpen(false)} />
       )}
-
-      <div className="flex-1" />
 
       {/* account selector */}
       <button className="flex h-9 items-center gap-2 rounded-md border border-border bg-surface-2 px-3 text-xs hover:bg-surface-3">
@@ -127,7 +133,7 @@ function InstrumentTab({
   const hasPosition = useHasOpenPosition(symbol);
   return (
     <div
-      className={`group relative flex h-[52px] items-center border-b-2 transition-colors ${
+      className={`group relative flex h-[52px] shrink-0 items-center border-b-2 transition-colors ${
         active
           ? "border-accent"
           : "border-transparent hover:border-border"
