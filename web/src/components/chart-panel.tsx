@@ -49,6 +49,7 @@ import {
   ChartContextMenu,
   type ChartContextMenuPosition,
 } from "@/components/chart-context-menu";
+import { ChartDrawingRail } from "@/components/chart-drawing-rail";
 
 export function ChartPanel() {
   const { activeSymbol } = useActiveInstrument();
@@ -89,25 +90,28 @@ export function ChartPanel() {
         chartType={chartType}
         onChartTypeChange={setChartType}
       />
-      <div className="relative flex-1 overflow-hidden">
-        <ChartOverlay
-          symbol={activeSymbol}
-          name={instrument?.name ?? ""}
-          timeframe={timeframe}
-          ohlc={lastCandle}
-          change={change}
-          changePct={changePct}
-        />
-        {/* key includes everything that needs a full chart rebuild:
-            switching symbol/timeframe/chart-type all swap the dataset
-            or the series renderer, so remount is the cleanest path. */}
-        <ChartCanvas
-          key={`${activeSymbol}-${timeframe}-${chartType}`}
-          chartType={chartType}
-          candles={candles}
-          positions={symbolPositions}
-          pendingOrders={symbolPendingOrders}
-        />
+      <div className="flex flex-1 overflow-hidden">
+        <ChartDrawingRail />
+        <div className="relative flex-1 overflow-hidden">
+          <ChartOverlay
+            symbol={activeSymbol}
+            name={instrument?.name ?? ""}
+            timeframe={timeframe}
+            ohlc={lastCandle}
+            change={change}
+            changePct={changePct}
+          />
+          {/* key includes everything that needs a full chart rebuild:
+              switching symbol/timeframe/chart-type all swap the dataset
+              or the series renderer, so remount is the cleanest path. */}
+          <ChartCanvas
+            key={`${activeSymbol}-${timeframe}-${chartType}`}
+            chartType={chartType}
+            candles={candles}
+            positions={symbolPositions}
+            pendingOrders={symbolPendingOrders}
+          />
+        </div>
       </div>
       <TimeframeStrip value={timeframe} onChange={setTimeframe} />
     </section>
