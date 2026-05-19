@@ -1,3 +1,6 @@
+"use client";
+
+import { useState } from "react";
 import {
   Bell,
   ChevronDown,
@@ -6,38 +9,48 @@ import {
   Plus,
   TrendingUp,
   User,
+  X,
 } from "lucide-react";
-import {
-  ACCOUNT,
-  ACTIVE_SYMBOL,
-  formatUsd,
-  hasOpenPosition,
-  OPEN_TABS,
-} from "@/lib/mock-data";
+import { ACCOUNT, formatUsd, hasOpenPosition } from "@/lib/mock-data";
+import { useActiveInstrument } from "@/lib/active-instrument-context";
+import { AddInstrumentDialog } from "@/components/add-instrument-dialog";
 import { TickerIcon } from "@/components/ticker-icon";
 
 export function HeaderBar() {
+  const { activeSymbol, openTabs, setActiveSymbol, closeTab } =
+    useActiveInstrument();
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const canCloseTabs = openTabs.length > 1;
+
   return (
     <header className="flex h-[52px] items-center gap-3 bg-surface px-3">
       <Logo />
 
       {/* instrument tabs */}
       <div className="ml-2 flex h-full items-center">
-        {OPEN_TABS.map((symbol) => (
+        {openTabs.map((symbol) => (
           <InstrumentTab
             key={symbol}
             symbol={symbol}
-            active={symbol === ACTIVE_SYMBOL}
+            active={symbol === activeSymbol}
             hasPosition={hasOpenPosition(symbol)}
+            canClose={canCloseTabs}
+            onClick={() => setActiveSymbol(symbol)}
+            onClose={() => closeTab(symbol)}
           />
         ))}
         <button
           aria-label="Add instrument"
+          onClick={() => setAddDialogOpen(true)}
           className="ml-1 flex h-7 w-7 items-center justify-center rounded-md text-text-muted hover:bg-surface-2 hover:text-text"
         >
           <Plus size={14} />
         </button>
       </div>
+
+      {addDialogOpen && (
+        <AddInstrumentDialog onClose={() => setAddDialogOpen(false)} />
+      )}
 
       <div className="flex-1" />
 
@@ -95,30 +108,62 @@ function InstrumentTab({
   symbol,
   active,
   hasPosition,
+  canClose,
+  onClick,
+  onClose,
 }: {
   symbol: string;
   active: boolean;
   hasPosition: boolean;
+  canClose: boolean;
+  onClick: () => void;
+  onClose: () => void;
 }) {
   return (
-    <button
-      className={`flex h-[52px] items-center gap-1.5 border-b-2 px-3 text-sm transition-colors ${
+    <div
+      className={`group relative flex h-[52px] items-center border-b-2 transition-colors ${
         active
-          ? "border-accent font-semibold text-text"
-          : "border-transparent text-text-muted hover:text-text"
+          ? "border-accent"
+          : "border-transparent hover:border-border"
       }`}
     >
-      <TickerIcon symbol={symbol} size={14} />
-      <span>{symbol}</span>
-      {hasPosition && (
-        <span
-          aria-label="Has open position"
-          className="font-mono text-[10px] leading-none tracking-tighter text-sell"
+      <button
+        onClick={onClick}
+        aria-current={active ? "true" : undefined}
+        className={`flex h-full items-center gap-1.5 pl-3 pr-1 text-sm transition-colors ${
+          active
+            ? "font-semibold text-text"
+            : "text-text-muted hover:text-text"
+        }`}
+      >
+        <TickerIcon symbol={symbol} size={14} />
+        <span>{symbol}</span>
+        {hasPosition && (
+          <span
+            aria-label="Has open position"
+            className="font-mono text-[10px] leading-none tracking-tighter text-sell"
+          >
+            ‖‖‖
+          </span>
+        )}
+      </button>
+      {canClose && (
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose();
+          }}
+          aria-label={`Close ${symbol} tab`}
+          // Always visible on the active tab; appear on hover for inactive
+          // ones so the chrome stays quiet.
+          className={`mr-2 flex h-4 w-4 items-center justify-center rounded-sm text-text-subtle transition-opacity hover:bg-surface-2 hover:text-text ${
+            active ? "opacity-100" : "opacity-0 group-hover:opacity-100"
+          }`}
         >
-          ‖‖‖
-        </span>
+          <X size={11} />
+        </button>
       )}
-    </button>
+    </div>
   );
 }
 

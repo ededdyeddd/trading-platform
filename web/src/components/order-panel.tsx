@@ -4,11 +4,11 @@ import { useState } from "react";
 import { ChevronDown, HelpCircle, X } from "lucide-react";
 import {
   ACCOUNT,
-  ACTIVE_SYMBOL,
   SENTIMENT,
   formatUsd,
   getInstrument,
 } from "@/lib/mock-data";
+import { useActiveInstrument } from "@/lib/active-instrument-context";
 import { useQuote } from "@/lib/quotes-context";
 import { TickerIcon } from "@/components/ticker-icon";
 import { SellBuyQuoteSplit, type Side } from "@/components/sell-buy-quote";
@@ -26,13 +26,16 @@ export function OrderPanel() {
   const [pendingType] = useState<PendingType>("limit");
   const [openPrice, setOpenPrice] = useState("");
 
-  const instrument = getInstrument(ACTIVE_SYMBOL);
-  const live = useQuote(ACTIVE_SYMBOL);
+  const { activeSymbol, openTabs, closeTab } = useActiveInstrument();
+  const instrument = getInstrument(activeSymbol);
+  const live = useQuote(activeSymbol);
   if (!instrument) return null;
+
+  const canCloseTab = openTabs.length > 1;
 
   const bid = live?.bid ?? instrument.bid;
   const ask = live?.ask ?? instrument.ask;
-  const sentiment = SENTIMENT[ACTIVE_SYMBOL] ?? { buy: 50, sell: 50 };
+  const sentiment = SENTIMENT[activeSymbol] ?? { buy: 50, sell: 50 };
   const spread = +(ask - bid).toFixed(2);
 
   return (
@@ -41,20 +44,23 @@ export function OrderPanel() {
       <div className="flex flex-1 flex-col gap-3 overflow-y-auto p-3">
         {/* Header */}
         <div className="flex items-center gap-2">
-          <TickerIcon symbol={ACTIVE_SYMBOL} size={16} />
+          <TickerIcon symbol={activeSymbol} size={16} />
           <span className="text-sm font-semibold text-text">
-            {ACTIVE_SYMBOL}
+            {activeSymbol}
           </span>
           <span className="truncate text-xs text-text-muted">
             {instrument.name}
           </span>
           <div className="flex-1" />
-          <button
-            aria-label="Close order panel"
-            className="flex h-6 w-6 items-center justify-center rounded text-text-muted hover:bg-surface-2 hover:text-text"
-          >
-            <X size={14} />
-          </button>
+          {canCloseTab && (
+            <button
+              onClick={() => closeTab(activeSymbol)}
+              aria-label={`Close ${activeSymbol} tab`}
+              className="flex h-6 w-6 items-center justify-center rounded text-text-muted hover:bg-surface-2 hover:text-text"
+            >
+              <X size={14} />
+            </button>
+          )}
         </div>
 
         {/* Order mode dropdown */}
@@ -203,11 +209,12 @@ function ConfirmButton({
   pendingType: PendingType;
   volume: number;
 }) {
+  const { activeSymbol } = useActiveInstrument();
   const verb = side === "buy" ? "Buy" : "Sell";
   const unit = volume === 1 ? "Share" : "Shares";
   const label =
     tab === "market"
-      ? `${verb} ${ACTIVE_SYMBOL} · ${volume} ${unit}`
+      ? `${verb} ${activeSymbol} · ${volume} ${unit}`
       : `Confirm ${verb} ${pendingType === "limit" ? "Limit" : "Stop"} · ${volume} ${unit}`;
 
   const styles =

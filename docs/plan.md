@@ -82,7 +82,7 @@ Tailwind v4 uses `@theme` blocks in CSS instead of `tailwind.config.ts`, so toke
 **Components to build (top→bottom, left→right):**
 
 1. **`<HeaderBar>`** — [web/src/components/header-bar.tsx](../web/src/components/header-bar.tsx) ✅ DONE
-   - Logo · multi-instrument tabs (AAPL, NVDA, AMZN, +) with active state and red-bar position indicator · `Demo · $9,605.17 ▾` account selector · notification/alarm/apps/avatar icons · Deposit pill CTA
+   - Logo · multi-instrument tabs (dynamic — driven by `openTabs` from `useActiveInstrument`) with click-to-activate, per-tab `×` close (always visible on the active tab, hover-revealed on inactive, disabled when only one tab remains so the terminal never goes empty), and the position indicator · `+` button opens **`<AddInstrumentDialog>`** ([web/src/components/add-instrument-dialog.tsx](../web/src/components/add-instrument-dialog.tsx)) — portal-rendered modal with live search across the full WATCHLIST; selecting a row calls `openTab(symbol)` which either activates the existing tab or appends a new one · `Demo · $9,605.17 ▾` account selector · notification/alarm/apps/avatar icons · Deposit pill CTA
 2. **`<SideRail>`** — [web/src/components/side-rail.tsx](../web/src/components/side-rail.tsx) ✅ DONE
    - Vertical icon column inside the fixed 48px aside: Instruments / Calendar / Settings. Active icon highlighted with `--color-surface-2` bg + 2px `--color-accent` left strip. Click swaps the contextual panel content via `activeRailPanel` state in `page.tsx`.
 3. **`<ContextualPanel>`** wrapper — [web/src/components/contextual-panel.tsx](../web/src/components/contextual-panel.tsx) ✅ DONE — header shows panel title + close affordance, body is a vertical-scrolling region that renders one of:
@@ -90,13 +90,15 @@ Tailwind v4 uses `@theme` blocks in CSS instead of `tailwind.config.ts`, so toke
    - **`<SettingsPanel>`** — [web/src/components/settings-panel.tsx](../web/src/components/settings-panel.tsx) ✅ DONE — toggle groups: Show on chart (Signals / HMR / Price alerts / Open positions / TP-SL / Economic calendar with nested checkboxes for impact levels), Sound effects (with `?` help icon), Open order mode dropdown, Price source dropdown. Uses shadcn `<Switch>` and `<Checkbox>` primitives.
    - Calendar variant — placeholder copy for now.
 4. **`<ChartPanel>`** — [web/src/components/chart-panel.tsx](../web/src/components/chart-panel.tsx) ✅ DONE
-   - Top toolbar: timeframe (`1m`) · trend · `fx Indicators` · layout · undo/redo · Save ▾ · screenshot · brand-tinted P/L tag (chartreuse if positive, coral if negative) · fullscreen
-   - `lightweight-charts` v5 candlestick canvas with chartreuse up/coral down candles, dotted grid in `--border`, dashed crosshair
+   - **State held at panel level:** `chartType` (`candle` | `line` | `area` | `bar`) and `timeframe` (1d / 5d / 1m / 3m / 6m / 1y / 5y). Combined with `activeSymbol` they form the `<ChartCanvas key>` — any change forces a clean rebuild of the lightweight-charts instance with the matching dataset + series renderer.
+   - **Top toolbar:** dynamic timeframe label (reflects current `timeframe`) · trend · `fx Indicators` · **chart-type dropdown** (4 options with lucide icons; click-outside + Escape to dismiss) · undo/redo · Save ▾ · brand-tinted P/L tag · **Fullscreen button left visually present but disabled** (`disabled` + `cursor-not-allowed` + 60% opacity) — wire later if needed. **Screenshot button removed** outright.
+   - **Bottom strip:** `1d` / `5d` / `1m` (default) / `3m` / `6m` / `1y` / `5y` — interactive buttons; clicking calls `setTimeframe`. Each value maps to a (candle-granularity, count) pair from `TIMEFRAME_SPECS` in mock-data. Only the default `1m` ticks live (via `useLiveCandles` through the QuotesProvider); longer ranges show static pre-generated history with volatility scaled by √(candleSecs/60).
+   - Series renderer per `chartType`: `CandlestickSeries` / `BarSeries` (OHLC payload) or `LineSeries` / `AreaSeries` (`{time, value}` from `close`). Same `lightweight-charts` v5 API across all four; the live-tick effect picks the right payload shape based on the current type.
    - Volume `HistogramSeries` in a second pane (~18% height) with side-tinted bars
    - **Position lines** via `createPriceLine`: entry (`--info` dashed), TP (`--buy` dashed), SL (`--sell` dashed), with axis labels
    - Tokens read from CSS vars at runtime so chart stays in sync with `globals.css` / `design.md`
    - `ResizeObserver` keeps chart sized to its container as panels resize
-   - Bottom strip: 5y/1y/6m/3m/1m (active) /5d/1d buttons · calendar icon · live UTC clock · auto toggle
+   - Calendar icon · live UTC clock · auto toggle in the bottom strip
    - Drawing tools sidebar omitted (per user)
 5. **`<OrderPanel>`** — [web/src/components/order-panel.tsx](../web/src/components/order-panel.tsx) ✅ DONE
    - Header: ticker icon + symbol + name + close ✕
@@ -121,30 +123,29 @@ Tailwind v4 uses `@theme` blocks in CSS instead of `tailwind.config.ts`, so toke
   - **Metals** (XAU, XAG, XPT, XPD / USD), **Crypto** (BTC, ETH, SOL, XRP, DOGE, ADA / USD), **Indices** (SPX500, NAS100, US30, GER40, UK100, JP225, HK50), **Energy** (WTI, BRENT, NGAS)
 - Per-instrument `precision` field — bid/ask formatted with the right decimal places per asset class
 - `CategoryFilter` union + `CATEGORY_OPTIONS` + `filterInstruments(items, category, query)` helper (sorts derive Most Traded by volume, Top Movers by |changePct|; rest match `category`; then substring-match on symbol/name)
-- Deterministic seeded random-walk candle generator → `CANDLES` for AAPL/NVDA/AMZN (180 candles each, 1m intervals)
+- Deterministic seeded random-walk candle generator → **`CANDLES_BY_TIMEFRAME`** keyed by `Timeframe` (1d / 5d / 1m / 3m / 6m / 1y / 5y) × symbol; per-timeframe `(candleSecs, count)` from `TIMEFRAME_SPECS`. Per-symbol seed derived from a hash XOR'd with `candleSecs` so each timeframe has its own (deterministic) history. Volatility ≈ 0.3% of mid scaled by √(candleSecs/60) so 1d/1w bars look more dramatic than 1m. `CANDLES` is re-exported as `CANDLES_BY_TIMEFRAME[DEFAULT_TIMEFRAME]` ("1m") so the QuotesProvider still seeds + live-ticks the default.
 - Empty default state: no open positions, no pending orders, fresh-deposit account, sentiment % for AAPL/NVDA/AMZN
 - Helpers: `getInstrument`, `hasOpenPosition`, `formatUsd`, `formatPct`, `filterInstruments`
 - **Note:** the order panel / chart / positions still operate on `ACTIVE_SYMBOL = "NVDA"` (equities-only flow). The forex/crypto/etc. catalog is currently surfaced only via the InstrumentsPanel list — selecting a non-equity row doesn't yet swap the active instrument elsewhere.
 
-**State (kept simple, in `page.tsx`):**
-- `activeInstrument` (string symbol)
-- `activeRailPanel` ("instruments" | "calendar" | "settings")
-- `positionsPanelCollapsed` (boolean)
-- `orderTab` ("market" | "pending")
-- `orderSide` ("buy" | "sell" — set when user clicks Buy/Sell quote)
+**State:**
+- `activeSymbol` + `openTabs` — held in `<ActiveInstrumentProvider>` ([web/src/lib/active-instrument-context.tsx](../web/src/lib/active-instrument-context.tsx)) as one `{ openTabs, activeSymbol }` object so `closeTab` can pick a neighbor to activate atomically. Initial values from `OPEN_TABS` / `ACTIVE_SYMBOL`. Exposes `setActiveSymbol`, `openTab(symbol)` (add-if-missing + activate), `closeTab(symbol)` (remove + auto-activate left neighbor; no-op when only one tab remains). Consumed by `HeaderBar` (tabs + `+` + per-tab `×`), `ChartPanel` (`useLiveCandles(activeSymbol)`, instrument lookup, position lines), `OrderPanel` (header symbol + Sell/Buy quote + confirm CTA label), and `InstrumentsPanel` (the accent-strip row highlight). `<ChartCanvas key={activeSymbol} />` so the lightweight-charts instance is rebuilt cleanly with the new symbol's series.
+- `activeRailPanel` ("instruments" | "calendar" | "settings") — local state in `page.tsx`
+- `positionsPanelCollapsed` (boolean), `orderTab` ("market" | "pending"), `orderSide` ("buy" | "sell" — set when user clicks Buy/Sell quote)
 
 **Favorites — [web/src/lib/favorites-context.tsx](../web/src/lib/favorites-context.tsx):** ✅ DONE
 - `<FavoritesProvider>` mounted in `page.tsx` holds a mutable `Set<string>` of starred symbols, seeded from `WATCHLIST[i].favorite`
 - Hook `useFavorites()` exposes `{ favorites, isFavorite, toggle }`. State is in-memory only (resets on refresh, same precedent as panel sizes)
 - `filterInstruments` takes the set as its fourth arg so the "Favorites" category filter reflects live toggles immediately
 
-**Live quotes — [web/src/lib/quotes-context.tsx](../web/src/lib/quotes-context.tsx):** ✅ DONE
-- **`TICK_INTERVAL_MS = 5_000` is the canonical heartbeat for the whole terminal** — any future mock-data block that simulates live motion (chart last candle, sentiment drift, account P/L, etc.) should `import { TICK_INTERVAL_MS } from "@/lib/quotes-context"` rather than define its own interval. One cadence keeps panels in sync.
-- `<QuotesProvider>` mounted in `page.tsx` (inside `SettingsProvider`) holds a `Record<symbol, {bid, ask, signal}>` keyed off `WATCHLIST`
-- A `setInterval` ticks every `TICK_INTERVAL_MS`, nudging each symbol's bid by a small random walk (~3 bps of mid-price). Spread is held constant; `signal` reflects the latest tick direction
-- Hooks: `useQuote(symbol)` for a single row, `useQuotes()` for the whole map
-- Consumers wired: InstrumentsPanel rows (all 50+ symbols) and OrderPanel's NVDA quote → `SellBuyQuoteSplit` + TP/SL/open-price defaults
-- **Future**: ChartPanel will read `useQuote(ACTIVE_SYMBOL)` to update the latest candle's close on each tick (deferred — not wired yet)
+**Live market — [web/src/lib/quotes-context.tsx](../web/src/lib/quotes-context.tsx):** ✅ DONE
+- **`TICK_INTERVAL_MS = 5_000` is the canonical heartbeat for the whole terminal** — any future mock-data block that simulates live motion (sentiment drift, account P/L, etc.) should `import { TICK_INTERVAL_MS } from "@/lib/quotes-context"` rather than define its own interval. One cadence keeps panels in sync.
+- `<QuotesProvider>` mounted in `page.tsx` (inside `SettingsProvider`) holds a single `MarketState = { quotes, candles }` so both stay derived atomically from the previous tick
+- Per tick:
+  - **Quotes** — each symbol's bid is nudged by a small random walk (~3 bps of mid-price). Spread is held constant; `signal` reflects the latest tick direction
+  - **Candles** — for every symbol, the last bar's close is set to the new mid (widening h/l if pierced); once that bar ages past `CANDLE_SECONDS = 60` (matches the 1m chart timeframe), a fresh bar is appended (open = prior close, volume small random walk)
+- Hooks: `useQuote(symbol)` / `useQuotes()` for the quote map; **`useLiveCandles(symbol)`** for the OHLC list — all pure context selectors (no extra `setState`-in-effect chains, no cascading renders)
+- Consumers wired: InstrumentsPanel rows (all 50+ symbols), OrderPanel's NVDA quote → `SellBuyQuoteSplit` + TP/SL/open-price defaults, **and ChartPanel** — the candlestick and volume series are forwarded the latest bar on each tick via `series.update()` (lightweight-charts auto-resolves same-time mutation vs newer-time append)
 
 ### 5. Create the Figma file via MCP
 Using `mcp__claude_ai_Figma__create_new_file`:
@@ -187,6 +188,8 @@ After the base is approved, when structure-source screenshots arrive:
 - [web/src/lib/mock-data.ts](../web/src/lib/mock-data.ts)
 - [web/src/lib/quotes-context.tsx](../web/src/lib/quotes-context.tsx) — `QuotesProvider` + `useQuote` hook (5s tick)
 - [web/src/lib/favorites-context.tsx](../web/src/lib/favorites-context.tsx) — `FavoritesProvider` + `useFavorites` hook (in-memory star toggle)
+- [web/src/lib/active-instrument-context.tsx](../web/src/lib/active-instrument-context.tsx) — `ActiveInstrumentProvider` + `useActiveInstrument` hook (header tabs swap the chart/order/highlight; manages openTabs + openTab/closeTab)
+- [web/src/components/add-instrument-dialog.tsx](../web/src/components/add-instrument-dialog.tsx) — portal-rendered "add instrument" modal with live search
 - [docs/figma.md](figma.md), [docs/sync.md](sync.md)
 - New Figma file via MCP
 

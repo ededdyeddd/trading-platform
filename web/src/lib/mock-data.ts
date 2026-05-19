@@ -79,9 +79,11 @@ export type Account = {
  * The original prototype was equities-only; we expanded the catalog so
  * the instruments panel can demonstrate category filtering matching the
  * competitor reference (Favorites / Majors / Metals / Crypto / Indices /
- * Stocks / Energy / Exotic / Minors / All) without committing to a full
- * forex experience elsewhere. Other panels still use NVDA via
- * ACTIVE_SYMBOL, so equities pricing logic is untouched.
+ * Stocks / Energy / Exotic / Minors / All). The chart, order panel,
+ * and instruments-row highlight now track `useActiveInstrument()`
+ * (live state) — `ACTIVE_SYMBOL` below is just the default seed for
+ * that state, and `CANDLES` is only seeded for AAPL/NVDA/AMZN since
+ * those are the only symbols that currently render as header tabs.
  * ─────────────────────────────────────────────────────────────────────*/
 
 export const WATCHLIST: Instrument[] = [
@@ -259,12 +261,13 @@ function generateCandles(
   seed: number,
   count: number,
   basePrice: number,
-  volatility: number
+  volatility: number,
+  candleSecs: number = 60
 ): Candle[] {
   const rand = makeRng(seed);
   const out: Candle[] = [];
   let price = basePrice;
-  const startTime = Math.floor(Date.now() / 1000) - count * 60;
+  const startTime = Math.floor(Date.now() / 1000) - count * candleSecs;
   for (let i = 0; i < count; i++) {
     const open = price;
     const direction = rand() > 0.48 ? 1 : -1;
@@ -273,24 +276,85 @@ function generateCandles(
     const high = Math.max(open, close) + rand() * volatility * 0.4;
     const low = Math.min(open, close) - rand() * volatility * 0.4;
     const volume = Math.round((rand() * 0.7 + 0.3) * 1_000_000);
-    out.push({ time: startTime + i * 60, open, high, low, close, volume });
+    out.push({
+      time: startTime + i * candleSecs,
+      open,
+      high,
+      low,
+      close,
+      volume,
+    });
     price = close;
   }
   return out;
 }
 
-const CANDLE_PARAMS: Record<string, { seed: number; base: number; vol: number }> = {
-  AAPL: { seed: 11, base: 224, vol: 0.6 },
-  NVDA: { seed: 23, base: 121, vol: 0.45 },
-  AMZN: { seed: 31, base: 182, vol: 0.55 },
+// Deterministic seed from the symbol so re-renders don't re-shuffle history.
+function symbolSeed(symbol: string): number {
+  let h = 0;
+  for (let i = 0; i < symbol.length; i++) h = (h * 31 + symbol.charCodeAt(i)) | 0;
+  return Math.abs(h) % 100_000;
+}
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Timeframes — range buttons in the chart's bottom strip.
+ *
+ * Each entry pairs a candle interval (seconds) with a count, picked to
+ * look plausible at that range without being exact (this is mock data,
+ * not real history). DEFAULT_TIMEFRAME `1m` matches the original
+ * 1-minute-candle dataset; only this timeframe live-ticks via the
+ * QuotesProvider's `tickCandles` — switching to longer ranges renders
+ * static history.
+ * ─────────────────────────────────────────────────────────────────────*/
+
+export const TIMEFRAMES = ["1d", "5d", "1m", "3m", "6m", "1y", "5y"] as const;
+export type Timeframe = (typeof TIMEFRAMES)[number];
+export const DEFAULT_TIMEFRAME: Timeframe = "1m";
+
+const TIMEFRAME_SPECS: Record<Timeframe, { candleSecs: number; count: number }> = {
+  "1d": { candleSecs: 5 * 60,             count: 80 },     // ~5m × 80
+  "5d": { candleSecs: 30 * 60,            count: 144 },    // ~30m × 144
+  "1m": { candleSecs: 60,                 count: 180 },    // 1m × 180 (live-ticked)
+  "3m": { candleSecs: 4 * 60 * 60,        count: 100 },    // ~4h × 100
+  "6m": { candleSecs: 24 * 60 * 60,       count: 130 },    // ~1d × 130
+  "1y": { candleSecs: 24 * 60 * 60,       count: 252 },    // ~1d × 252
+  "5y": { candleSecs: 7 * 24 * 60 * 60,   count: 260 },    // ~1w × 260
 };
 
-export const CANDLES: Record<string, Candle[]> = Object.fromEntries(
-  Object.entries(CANDLE_PARAMS).map(([symbol, p]) => [
-    symbol,
-    generateCandles(p.seed, 180, p.base, p.vol),
-  ])
-);
+function generateForTimeframe(timeframe: Timeframe): Record<string, Candle[]> {
+  const spec = TIMEFRAME_SPECS[timeframe];
+  // Random-walk volatility scales with sqrt(time) — longer candles
+  // accumulate more variance, so 1d/1w bars look more dramatic than 1m.
+  const volScale = Math.sqrt(spec.candleSecs / 60);
+  const out: Record<string, Candle[]> = {};
+  for (const inst of WATCHLIST) {
+    out[inst.symbol] = generateCandles(
+      symbolSeed(inst.symbol) ^ spec.candleSecs,
+      spec.count,
+      inst.bid,
+      inst.bid * 0.003 * volScale,
+      spec.candleSecs
+    );
+  }
+  return out;
+}
+
+export const CANDLES_BY_TIMEFRAME: Record<Timeframe, Record<string, Candle[]>> =
+  Object.fromEntries(
+    TIMEFRAMES.map((tf) => [tf, generateForTimeframe(tf)])
+  ) as Record<Timeframe, Record<string, Candle[]>>;
+
+/** Default-timeframe candles — kept exported as `CANDLES` for the
+ *  QuotesProvider's seed (which only live-ticks this timeframe). */
+export const CANDLES: Record<string, Candle[]> =
+  CANDLES_BY_TIMEFRAME[DEFAULT_TIMEFRAME];
+
+/* ──────────────────────────────────────────────────────────────────────
+ * Chart types — series renderer selector in the toolbar.
+ * ─────────────────────────────────────────────────────────────────────*/
+
+export type ChartType = "candle" | "line" | "area" | "bar";
+export const DEFAULT_CHART_TYPE: ChartType = "candle";
 
 /* ──────────────────────────────────────────────────────────────────────
  * Sentiment (mock buy/sell %)

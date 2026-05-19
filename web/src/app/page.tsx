@@ -13,6 +13,7 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "@/components/ui/resizable";
+import { ActiveInstrumentProvider } from "@/lib/active-instrument-context";
 import { FavoritesProvider } from "@/lib/favorites-context";
 import { QuotesProvider } from "@/lib/quotes-context";
 import { SettingsProvider } from "@/lib/settings-context";
@@ -22,7 +23,9 @@ export default function Home() {
     <SettingsProvider>
       <FavoritesProvider>
         <QuotesProvider>
-          <Terminal />
+          <ActiveInstrumentProvider>
+            <Terminal />
+          </ActiveInstrumentProvider>
         </QuotesProvider>
       </FavoritesProvider>
     </SettingsProvider>

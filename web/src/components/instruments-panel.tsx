@@ -3,13 +3,13 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ArrowDown, ArrowUp, ChevronDown, Search, Star, X } from "lucide-react";
 import {
-  ACTIVE_SYMBOL,
   CATEGORY_OPTIONS,
   WATCHLIST,
   filterInstruments,
   type CategoryFilter,
   type Instrument,
 } from "@/lib/mock-data";
+import { useActiveInstrument } from "@/lib/active-instrument-context";
 import { useFavorites } from "@/lib/favorites-context";
 import { useQuote } from "@/lib/quotes-context";
 import { TickerIcon } from "@/components/ticker-icon";
@@ -18,6 +18,7 @@ export function InstrumentsPanel() {
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<CategoryFilter>("favorites");
   const { favorites } = useFavorites();
+  const { activeSymbol } = useActiveInstrument();
 
   const results = useMemo(
     () => filterInstruments(WATCHLIST, category, query, favorites),
@@ -75,7 +76,7 @@ export function InstrumentsPanel() {
             <InstrumentRow
               key={instrument.symbol}
               instrument={instrument}
-              active={instrument.symbol === ACTIVE_SYMBOL}
+              active={instrument.symbol === activeSymbol}
             />
           ))}
         </div>
