@@ -90,14 +90,6 @@ export function OrderPanel() {
           <div className="flex-1" />
         </div>
 
-        {/* Order mode dropdown */}
-        <button className="flex h-9 items-center gap-2 rounded-md border border-border bg-surface-2 px-3 text-xs hover:bg-surface-3">
-          <span className="text-text-muted">Order mode</span>
-          <span className="font-medium text-text">Regular form</span>
-          <div className="flex-1" />
-          <ChevronDown size={12} className="text-text-muted" />
-        </button>
-
         {/* Sell/Buy quote split */}
         <SellBuyQuoteSplit
           bid={bid}

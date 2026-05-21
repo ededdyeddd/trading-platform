@@ -26,7 +26,7 @@ export type ToastInput = {
   kind?: ToastKind;
   title: string;
   description?: string;
-  /** Milliseconds before auto-dismiss. Defaults to 5000 ms. */
+  /** Milliseconds before auto-dismiss. Defaults to 3000 ms. */
   durationMs?: number;
 };
 
@@ -38,7 +38,7 @@ type ToastContextValue = {
 
 const ToastContext = createContext<ToastContextValue | null>(null);
 
-const DEFAULT_DURATION_MS = 5000;
+const DEFAULT_DURATION_MS = 3000;
 const EXIT_ANIMATION_MS = 300;
 let nextId = 1;
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { getInstrument } from "@/lib/mock-data";
 import { useActiveInstrument } from "@/lib/active-instrument-context";
@@ -17,9 +17,9 @@ import { useQuote } from "@/lib/quotes-context";
  *   • clicked < bid → Buy Limit (buy-dip) / Sell Stop (cut-loss)
  *   • clicked between bid/ask → only the market actions
  *
- * Volume is hard-coded to 1 — the OrderPanel is where you go for
- * fine-grained sizing / TP-SL pre-set. This menu is the "quick trade"
- * affordance.
+ * Volume is editable inline (stepper in the menu header) so quick
+ * trades can still be sized. The OrderPanel is where you go for full
+ * TP-SL pre-set; this menu stays the "quick trade" affordance.
  */
 
 const DEFAULT_VOLUME = 1;
@@ -44,6 +44,7 @@ export function ChartContextMenu({
   const live = useQuote(symbol);
   const instrument = getInstrument(symbol);
   const { openMarketPosition, openPendingOrder } = usePositions();
+  const [volume, setVolume] = useState<number>(DEFAULT_VOLUME);
 
   const bid = live?.bid ?? instrument?.bid ?? position.price;
   const ask = live?.ask ?? instrument?.ask ?? position.price;
@@ -95,7 +96,7 @@ export function ChartContextMenu({
     openMarketPosition({
       symbol,
       side: "buy",
-      volume: DEFAULT_VOLUME,
+      volume,
       openPrice: ask,
       takeProfit: null,
       stopLoss: null,
@@ -106,7 +107,7 @@ export function ChartContextMenu({
     openMarketPosition({
       symbol,
       side: "sell",
-      volume: DEFAULT_VOLUME,
+      volume,
       openPrice: bid,
       takeProfit: null,
       stopLoss: null,
@@ -118,7 +119,7 @@ export function ChartContextMenu({
       symbol,
       side: "buy",
       type,
-      volume: DEFAULT_VOLUME,
+      volume,
       triggerPrice: position.price,
       takeProfit: null,
       stopLoss: null,
@@ -130,7 +131,7 @@ export function ChartContextMenu({
       symbol,
       side: "sell",
       type,
-      volume: DEFAULT_VOLUME,
+      volume,
       triggerPrice: position.price,
       takeProfit: null,
       stopLoss: null,
@@ -140,9 +141,12 @@ export function ChartContextMenu({
 
   if (typeof document === "undefined") return null;
 
-  // Keep the menu inside the viewport. Rough box: ~220×~180 px.
-  const left = Math.min(position.x, window.innerWidth - 240);
-  const top = Math.min(position.y, window.innerHeight - 200);
+  // Keep the menu inside the viewport. Rough box: ~240×~230 px
+  // (extra height for the volume stepper row).
+  const left = Math.min(position.x, window.innerWidth - 260);
+  const top = Math.min(position.y, window.innerHeight - 240);
+
+  const canTrade = volume > 0;
 
   return createPortal(
     <div
@@ -150,15 +154,17 @@ export function ChartContextMenu({
       role="menu"
       aria-label="Chart trade actions"
       style={{ left, top }}
-      className="fixed z-50 min-w-[200px] overflow-hidden rounded-md border border-border bg-surface-2 py-1 shadow-2xl"
+      className="fixed z-50 min-w-[220px] overflow-hidden rounded-md border border-border bg-surface-2 py-1 shadow-2xl"
       onContextMenu={(e) => e.preventDefault()}
     >
       <PriceHeader price={position.price} precision={precision} />
-      <MenuItem accent="buy" onClick={buyMarket}>
+      <VolumeRow value={volume} onChange={setVolume} />
+      <div className="my-1 border-t border-border" />
+      <MenuItem accent="buy" onClick={buyMarket} disabled={!canTrade}>
         Buy at market
         <Hint>{ask.toFixed(precision)}</Hint>
       </MenuItem>
-      <MenuItem accent="sell" onClick={sellMarket}>
+      <MenuItem accent="sell" onClick={sellMarket} disabled={!canTrade}>
         Sell at market
         <Hint>{bid.toFixed(precision)}</Hint>
       </MenuItem>
@@ -166,12 +172,20 @@ export function ChartContextMenu({
         <div className="my-1 border-t border-border" />
       )}
       {buyPending && (
-        <MenuItem accent="buy" onClick={() => buyAtPrice(buyPending!.type)}>
+        <MenuItem
+          accent="buy"
+          onClick={() => buyAtPrice(buyPending!.type)}
+          disabled={!canTrade}
+        >
           {buyPending.label} @ <Hint>{position.price.toFixed(precision)}</Hint>
         </MenuItem>
       )}
       {sellPending && (
-        <MenuItem accent="sell" onClick={() => sellAtPrice(sellPending!.type)}>
+        <MenuItem
+          accent="sell"
+          onClick={() => sellAtPrice(sellPending!.type)}
+          disabled={!canTrade}
+        >
           {sellPending.label} @ <Hint>{position.price.toFixed(precision)}</Hint>
         </MenuItem>
       )}
@@ -198,10 +212,12 @@ function PriceHeader({
 function MenuItem({
   accent,
   onClick,
+  disabled,
   children,
 }: {
   accent: "buy" | "sell";
   onClick: () => void;
+  disabled?: boolean;
   children: React.ReactNode;
 }) {
   const accentClass =
@@ -213,10 +229,58 @@ function MenuItem({
       role="menuitem"
       type="button"
       onClick={onClick}
-      className={`flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-xs font-medium transition-colors ${accentClass}`}
+      disabled={disabled}
+      aria-disabled={disabled}
+      className={`flex w-full items-center justify-between gap-3 px-3 py-1.5 text-left text-xs font-medium transition-colors ${accentClass} ${
+        disabled ? "cursor-not-allowed opacity-50 hover:bg-transparent" : ""
+      }`}
     >
       {children}
     </button>
+  );
+}
+
+function VolumeRow({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (next: number) => void;
+}) {
+  const sanitize = (n: number) => (Number.isFinite(n) && n > 0 ? n : 0);
+  return (
+    <div className="flex items-center justify-between gap-2 px-3 py-1.5">
+      <span className="text-[10px] uppercase tracking-wider text-text-muted">
+        Volume
+      </span>
+      <div className="flex h-6 items-center overflow-hidden rounded border border-border bg-surface">
+        <button
+          type="button"
+          aria-label="Decrease volume"
+          onClick={() => onChange(Math.max(0, value - 1))}
+          className="flex h-6 w-6 items-center justify-center text-text-muted hover:bg-surface-3 hover:text-text"
+        >
+          −
+        </button>
+        <input
+          type="number"
+          min={0}
+          step={1}
+          value={value}
+          onChange={(e) => onChange(sanitize(Number(e.target.value)))}
+          onClick={(e) => e.currentTarget.select()}
+          className="h-6 w-14 bg-transparent text-center font-mono text-xs tabular-nums text-text focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+        />
+        <button
+          type="button"
+          aria-label="Increase volume"
+          onClick={() => onChange(value + 1)}
+          className="flex h-6 w-6 items-center justify-center text-text-muted hover:bg-surface-3 hover:text-text"
+        >
+          +
+        </button>
+      </div>
+    </div>
   );
 }
 

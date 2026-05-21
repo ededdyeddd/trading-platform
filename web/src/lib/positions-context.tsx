@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
 } from "react";
 import {
@@ -123,6 +124,15 @@ export function PositionsProvider({
   const quotes = useQuotes();
   const { toast } = useToast();
 
+  // Mirror of `state` for read-only lookups inside event handlers. Lets
+  // handlers compute side-effect payloads (toasts) without doing the
+  // lookup inside the setState updater — strict-mode double-invokes the
+  // updater, so any toast() called there would fire twice.
+  const stateRef = useRef(state);
+  useEffect(() => {
+    stateRef.current = state;
+  }, [state]);
+
   const openMarketPosition = useCallback(
     (args: OpenMarketArgs): Position => {
       const position: Position = {
@@ -178,73 +188,71 @@ export function PositionsProvider({
 
   const closePosition = useCallback(
     (id: string, closePrice: number) => {
-      setState((prev) => {
-        const target = prev.positions.find((p) => p.id === id);
-        if (!target) return prev;
-        const closed: ClosedPosition = {
-          ...target,
-          closePrice,
-          closedAt: Date.now(),
-          realizedPnl: computePnl(target, closePrice),
-        };
-        toast({
-          kind: closed.realizedPnl >= 0 ? "success" : "error",
-          title: "Position closed",
-          description: `${target.side.toUpperCase()} ${target.volume} ${target.symbol} · P&L ${fmtPnl(closed.realizedPnl)}`,
-        });
-        return {
-          ...prev,
-          positions: prev.positions.filter((p) => p.id !== id),
-          closedPositions: [...prev.closedPositions, closed],
-        };
+      const target = stateRef.current.positions.find((p) => p.id === id);
+      if (!target) return;
+      const closed: ClosedPosition = {
+        ...target,
+        closePrice,
+        closedAt: Date.now(),
+        realizedPnl: computePnl(target, closePrice),
+      };
+      toast({
+        kind: closed.realizedPnl >= 0 ? "success" : "error",
+        title: "Position closed",
+        description: `${target.side.toUpperCase()} ${target.volume} ${target.symbol} · P&L ${fmtPnl(closed.realizedPnl)}`,
       });
+      setState((prev) => ({
+        ...prev,
+        positions: prev.positions.filter((p) => p.id !== id),
+        closedPositions: [...prev.closedPositions, closed],
+      }));
     },
     [toast]
   );
 
   const cancelPendingOrder = useCallback(
     (id: string) => {
-      setState((prev) => {
-        const target = prev.pendingOrders.find((o) => o.id === id);
-        if (!target) return prev;
-        toast({
-          kind: "warning",
-          title: "Pending order cancelled",
-          description: `${target.type === "limit" ? "Limit" : "Stop"} ${target.side.toUpperCase()} ${target.volume} ${target.symbol}`,
-        });
-        return {
-          ...prev,
-          pendingOrders: prev.pendingOrders.filter((o) => o.id !== id),
-        };
+      const target = stateRef.current.pendingOrders.find((o) => o.id === id);
+      if (!target) return;
+      toast({
+        kind: "warning",
+        title: "Pending order cancelled",
+        description: `${target.type === "limit" ? "Limit" : "Stop"} ${target.side.toUpperCase()} ${target.volume} ${target.symbol}`,
       });
+      setState((prev) => ({
+        ...prev,
+        pendingOrders: prev.pendingOrders.filter((o) => o.id !== id),
+      }));
     },
     [toast]
   );
 
   const updatePosition = useCallback(
     (id: string, patch: PositionPatch) => {
+      const existing = stateRef.current.positions.find((p) => p.id === id);
+      if (!existing) return;
+      const merged = { ...existing, ...patch };
+      const parts: string[] = [];
+      if ("takeProfit" in patch) {
+        parts.push(
+          `TP ${merged.takeProfit === null ? "off" : fmtPrice(merged.symbol, merged.takeProfit)}`
+        );
+      }
+      if ("stopLoss" in patch) {
+        parts.push(
+          `SL ${merged.stopLoss === null ? "off" : fmtPrice(merged.symbol, merged.stopLoss)}`
+        );
+      }
+      toast({
+        kind: "info",
+        title: "Position updated",
+        description: `${merged.symbol}${parts.length ? " · " + parts.join(" · ") : ""}`,
+      });
       setState((prev) => {
         const idx = prev.positions.findIndex((p) => p.id === id);
         if (idx === -1) return prev;
         const next = prev.positions.slice();
-        const merged = { ...prev.positions[idx], ...patch };
-        next[idx] = merged;
-        const parts: string[] = [];
-        if ("takeProfit" in patch) {
-          parts.push(
-            `TP ${merged.takeProfit === null ? "off" : fmtPrice(merged.symbol, merged.takeProfit)}`
-          );
-        }
-        if ("stopLoss" in patch) {
-          parts.push(
-            `SL ${merged.stopLoss === null ? "off" : fmtPrice(merged.symbol, merged.stopLoss)}`
-          );
-        }
-        toast({
-          kind: "info",
-          title: "Position updated",
-          description: `${merged.symbol}${parts.length ? " · " + parts.join(" · ") : ""}`,
-        });
+        next[idx] = { ...prev.positions[idx], ...patch };
         return { ...prev, positions: next };
       });
     },

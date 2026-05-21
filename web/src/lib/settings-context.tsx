@@ -29,7 +29,12 @@ export type ImpactLevel =
   | "Low impact"
   | "Lowest impact";
 
-export type WidgetKey = "instruments" | "chart" | "positions" | "order";
+export type WidgetKey =
+  | "instruments"
+  | "chart"
+  | "positions"
+  | "order"
+  | "ai";
 
 export type SettingsState = {
   chart: Record<ChartFlag, boolean>;
@@ -78,6 +83,7 @@ const DEFAULTS: SettingsState = {
     chart: true,
     positions: true,
     order: true,
+    ai: false,
   },
   orderMode: "Regular form",
   priceSource: "Last price",

@@ -387,7 +387,7 @@ function ClosedPositionRow({ row }: { row: ClosedPosition }) {
 
 function Editable({ value }: { value: string }) {
   return (
-    <span className="cursor-pointer text-right font-mono tabular-nums text-text underline decoration-text-subtle/40 decoration-dashed underline-offset-2 hover:decoration-text-muted">
+    <span className="text-right font-mono tabular-nums text-text">
       {value}
     </span>
   );

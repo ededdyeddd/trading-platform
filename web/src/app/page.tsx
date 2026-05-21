@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { AiSummaryPanel } from "@/components/ai-summary-panel";
 import { ChartPanel } from "@/components/chart-panel";
 import { ContextualPanel } from "@/components/contextual-panel";
 import { HeaderBar } from "@/components/header-bar";
@@ -44,13 +45,14 @@ function Terminal() {
   const { settings } = useSettings();
   const { widgets } = settings;
 
+  const leftVisible = widgets.instruments || widgets.ai;
   const showMiddle = widgets.chart || widgets.positions;
-  const anyVisible = widgets.instruments || showMiddle || widgets.order;
+  const anyVisible = leftVisible || showMiddle || widgets.order;
 
   // Re-mount the group when visibility changes so default sizes redistribute
   // across the currently visible panels — react-resizable-panels keeps the
   // last user-sized values otherwise.
-  const layoutKey = `${widgets.instruments}-${widgets.chart}-${widgets.positions}-${widgets.order}`;
+  const layoutKey = `${widgets.instruments}-${widgets.ai}-${widgets.chart}-${widgets.positions}-${widgets.order}`;
 
   return (
     <div className="flex h-screen w-screen flex-col bg-bg">
@@ -73,18 +75,36 @@ function Terminal() {
             orientation="horizontal"
             className="flex-1"
           >
-            {widgets.instruments && (
+            {leftVisible && (
               <ResizablePanel
-                id="context"
+                id="left"
                 defaultSize="22%"
                 minSize="15%"
                 maxSize="40%"
               >
-                <ContextualPanel active={activeRailPanel} />
+                <ResizablePanelGroup orientation="vertical">
+                  {widgets.instruments && (
+                    <ResizablePanel
+                      id="context"
+                      defaultSize="60%"
+                      minSize="20%"
+                    >
+                      <ContextualPanel active={activeRailPanel} />
+                    </ResizablePanel>
+                  )}
+                  {widgets.instruments && widgets.ai && (
+                    <ResizableHandle withHandle />
+                  )}
+                  {widgets.ai && (
+                    <ResizablePanel id="ai" defaultSize="40%" minSize="20%">
+                      <AiSummaryPanel />
+                    </ResizablePanel>
+                  )}
+                </ResizablePanelGroup>
               </ResizablePanel>
             )}
 
-            {widgets.instruments && (showMiddle || widgets.order) && (
+            {leftVisible && (showMiddle || widgets.order) && (
               <ResizableHandle withHandle />
             )}
 

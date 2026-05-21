@@ -11,6 +11,11 @@ const WIDGETS: { key: WidgetKey; label: string; description: string }[] = [
     description: "Searchable list of tickers and favorites",
   },
   {
+    key: "ai",
+    label: "AI Insights",
+    description: "Recommendation, score and analyst summary for the active symbol",
+  },
+  {
     key: "chart",
     label: "Chart",
     description: "Price chart with drawing tools",
